@@ -88,3 +88,46 @@ describe("Admin Auth", () => {
     expect(res.headers.location).toBe("/admin");
   });
 });
+
+describe("Admin Dashboard", () => {
+  let app: express.Express;
+  let db: Database;
+  let state: StateManager;
+  let uploadDir: string;
+  let cookie: string;
+
+  beforeEach(async () => {
+    db = new Database(":memory:");
+    state = new StateManager(db);
+    uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-test-"));
+    app = express();
+    app.use(express.urlencoded({ extended: false }));
+    app.use(createAdminRoutes({
+      state,
+      uploadDir,
+      password: "testpass",
+      maxStorageMb: 1000,
+      maxSessions: 50,
+    }));
+    const loginRes = await request(app).post("/admin/login").send("password=testpass");
+    cookie = loginRes.headers["set-cookie"];
+  });
+
+  afterEach(() => {
+    state.stopAutoSave();
+    db.close();
+    fs.rmSync(uploadDir, { recursive: true, force: true });
+  });
+
+  it("shows disk usage, session count, and file count", async () => {
+    const session = state.createSession();
+    state.setMap(session.id, { imageUrl: "/uploads/test.png", width: 100, height: 100 });
+    fs.writeFileSync(path.join(uploadDir, "test.png"), "x".repeat(500));
+
+    const res = await request(app).get("/admin/dashboard").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Disk Usage");
+    expect(res.text).toContain("Sessions");
+    expect(res.text).toContain("1"); // 1 session
+  });
+});

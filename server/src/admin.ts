@@ -1,7 +1,11 @@
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { StateManager } from "./state.js";
+import { getDirSize } from "./guards.js";
+import type { Session } from "./types.js";
 
 export interface AdminConfig {
   state: StateManager;
@@ -89,6 +93,68 @@ ${content}
 </html>`;
 }
 
+// --- Upload file helpers ---
+
+interface FileInfo {
+  name: string;
+  size: number;
+}
+
+export function getUploadedFiles(uploadDir: string): FileInfo[] {
+  try {
+    return fs.readdirSync(uploadDir).map((name) => {
+      const stat = fs.statSync(path.join(uploadDir, name));
+      return { name, size: stat.size };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function countOrphans(files: FileInfo[], sessions: Session[]): number {
+  const referencedFiles = new Set(
+    sessions.filter((s) => s.map).map((s) => s.map!.imageUrl.replace("/uploads/", ""))
+  );
+  return files.filter((f) => !referencedFiles.has(f.name)).length;
+}
+
+// --- Dashboard template ---
+
+interface DashboardData {
+  diskUsage: number;
+  maxStorageMb: number;
+  sessionCount: number;
+  maxSessions: number;
+  fileCount: number;
+  orphanedCount: number;
+}
+
+function renderDashboard(data: DashboardData): string {
+  const diskUsageMb = (data.diskUsage / (1024 * 1024)).toFixed(2);
+  return `
+    <h1>Admin Dashboard</h1>
+    <nav>
+      <a href="/admin/sessions">Sessions</a> |
+      <a href="/admin/files">Files</a> |
+      <form method="POST" action="/admin/logout" style="display:inline">
+        <button type="submit">Logout</button>
+      </form>
+    </nav>
+    <section>
+      <h2>Disk Usage</h2>
+      <p>${diskUsageMb} MB / ${data.maxStorageMb} MB</p>
+    </section>
+    <section>
+      <h2>Sessions</h2>
+      <p>${data.sessionCount} / ${data.maxSessions}</p>
+    </section>
+    <section>
+      <h2>Files</h2>
+      <p>${data.fileCount} files (${data.orphanedCount} orphaned)</p>
+    </section>
+  `;
+}
+
 // --- Router factory ---
 
 export function createAdminRoutes(config: AdminConfig): Router {
@@ -137,11 +203,22 @@ export function createAdminRoutes(config: AdminConfig): Router {
     res.redirect("/admin");
   });
 
-  // GET /admin/dashboard — placeholder, requires auth
+  // GET /admin/dashboard — real data, requires auth
   router.get("/admin/dashboard", requireAuth, (_req, res) => {
-    res.status(200).send(
-      renderLayout("Admin Dashboard", "<h1>Dashboard</h1><p>Admin dashboard placeholder.</p>")
-    );
+    const diskUsage = getDirSize(config.uploadDir);
+    const sessionCount = config.state.sessionCount;
+    const files = getUploadedFiles(config.uploadDir);
+    const sessions = config.state.listSessions();
+    const orphanedCount = countOrphans(files, sessions);
+
+    res.status(200).send(renderLayout("Admin Dashboard", renderDashboard({
+      diskUsage,
+      maxStorageMb: config.maxStorageMb,
+      sessionCount,
+      maxSessions: config.maxSessions,
+      fileCount: files.length,
+      orphanedCount,
+    })));
   });
 
   // GET /admin/sessions — placeholder, requires auth
