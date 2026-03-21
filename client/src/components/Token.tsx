@@ -16,7 +16,11 @@ export function TokenComponent({ token, gridSize, onDragEnd }: Props) {
       y={token.y}
       draggable
       onDragEnd={(e) => {
-        onDragEnd(token.id, e.target.x(), e.target.y());
+        const node = e.target;
+        const x = node.x();
+        const y = node.y();
+        node.position({ x: token.x, y: token.y });
+        onDragEnd(token.id, x, y);
       }}
     >
       <Circle

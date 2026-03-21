@@ -64,15 +64,32 @@ export function BattleMap({ session, onMoveToken }: Props) {
       const size = session.gridSize;
       if (session.gridMode === "square") {
         return {
-          x: Math.round(x / size) * size + size / 2,
-          y: Math.round(y / size) * size + size / 2,
+          x: Math.floor(x / size) * size + size / 2,
+          y: Math.floor(y / size) * size + size / 2,
         };
       }
-      // Hex grid snapping
+      // Hex grid snapping via cube coordinates (flat-top hexes)
       const hexW = size * Math.sqrt(3);
       const hexH = size * 1.5;
-      const col = Math.round(x / hexW);
-      const row = Math.round(y / hexH);
+      const q = (Math.sqrt(3) / 3 * x - y / 3) / size;
+      const r = (2 / 3 * y) / size;
+      const s = -q - r;
+      let rq = Math.round(q);
+      let rr = Math.round(r);
+      let rs = Math.round(s);
+      const dq = Math.abs(rq - q);
+      const dr = Math.abs(rr - r);
+      const ds = Math.abs(rs - s);
+      if (dq > dr && dq > ds) {
+        rq = -rr - rs;
+      } else if (dr > ds) {
+        rr = -rq - rs;
+      } else {
+        rs = -rq - rr;
+      }
+      // Axial to odd-row offset, then to pixel
+      const col = rq + (rr - (rr & 1)) / 2;
+      const row = rr;
       const offsetX = row % 2 === 0 ? 0 : hexW / 2;
       return { x: col * hexW + offsetX, y: row * hexH };
     },
