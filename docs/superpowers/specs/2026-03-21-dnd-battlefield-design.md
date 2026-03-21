@@ -26,7 +26,12 @@ A real-time collaborative battle map app for D&D sessions. Users upload a battle
 
 **Storage:** SQLite via `better-sqlite3`, single file on persistent volume (`/data/battlefield.db`).
 
-Server loads session state from SQLite into memory on startup, writes changes back on each update.
+**Persistence strategy:** State lives in memory; SQLite is only for persistence. All real-time operations read/write only in-memory state (zero DB latency). State is saved to SQLite in three ways:
+- **Manual save** - a "Save" button in the UI triggers a full state write
+- **Auto-save** - every 30-60 seconds, automatically write current state to DB
+- **On last disconnect** - auto-save when the last client disconnects from a session
+
+Worst-case data loss on server crash: ~60 seconds of changes between auto-saves.
 
 ### Session
 | Field | Type | Description |
@@ -62,7 +67,7 @@ Server loads session state from SQLite into memory on startup, writes changes ba
 1. User drags a token on the canvas
 2. Client applies the move instantly (optimistic) - token moves on their screen immediately
 3. Client emits `token:move` event to server via Socket.io
-4. Server updates SQLite, broadcasts `token:moved` to all other clients
+4. Server updates in-memory state, broadcasts `token:moved` to all other clients
 5. Other clients apply the update to their canvas
 
 ### Conflict Handling
