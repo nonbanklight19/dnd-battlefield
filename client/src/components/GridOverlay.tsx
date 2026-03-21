@@ -16,7 +16,7 @@ export function GridOverlay({ gridMode, gridSize, width, height }: Props) {
 
 function SquareGrid({ gridSize, width, height }: { gridSize: number; width: number; height: number }) {
   const lines: JSX.Element[] = [];
-  const stroke = "rgba(255, 255, 255, 0.15)";
+  const stroke = "rgba(202, 169, 104, 0.08)";
 
   for (let x = 0; x <= width; x += gridSize) {
     lines.push(
@@ -33,7 +33,7 @@ function SquareGrid({ gridSize, width, height }: { gridSize: number; width: numb
 
 function HexGrid({ gridSize, width, height }: { gridSize: number; width: number; height: number }) {
   const lines: JSX.Element[] = [];
-  const stroke = "rgba(255, 255, 255, 0.15)";
+  const stroke = "rgba(202, 169, 104, 0.08)";
   const hexW = gridSize * Math.sqrt(3);
   const hexH = gridSize * 1.5;
 

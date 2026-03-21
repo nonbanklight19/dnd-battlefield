@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Outfit', sans-serif;
+
+  --color-bg-deepest: #0a0c07;
+  --color-bg-deep: #0d0f0a;
+  --color-bg-surface: #161a11;
+  --color-bg-elevated: #1c2116;
+  --color-bg-hover: #232a1c;
+
+  --color-gold-bright: #d4a855;
+  --color-gold-muted: #b8943f;
+  --color-gold-dim: rgba(202, 169, 104, 0.15);
+  --color-gold-subtle: rgba(202, 169, 104, 0.08);
+  --color-gold-glow: rgba(202, 169, 104, 0.25);
+
+  --color-border-default: rgba(202, 169, 104, 0.12);
+  --color-border-hover: rgba(202, 169, 104, 0.25);
+
+  --color-text-primary: #e8e0d0;
+  --color-text-secondary: rgba(232, 224, 208, 0.6);
+  --color-text-muted: rgba(232, 224, 208, 0.35);
+
+  --color-danger: #e05252;
+}
+
+/* Base styles */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 125%; }
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg-deep);
+  color: var(--color-text-primary);
+}
+#root { height: 100vh; display: flex; flex-direction: column; }
+
+/* Custom range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--color-bg-deep);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-gold-bright);
+  box-shadow: 0 0 8px rgba(202, 169, 104, 0.4);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-gold-bright);
+  box-shadow: 0 0 8px rgba(202, 169, 104, 0.4);
+  cursor: pointer;
+  border: none;
+}
+
+/* Collapsible section animation */
+.panel-content {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 200ms ease;
+}
+.panel-content.collapsed {
+  grid-template-rows: 0fr;
+}
+.panel-content > div {
+  overflow: hidden;
+}

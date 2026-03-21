@@ -36,7 +36,6 @@ export function App() {
       const formData = new FormData();
       formData.append("map", file);
 
-      // Read image dimensions before uploading
       const img = new window.Image();
       const url = URL.createObjectURL(file);
       img.src = url;
@@ -49,7 +48,6 @@ export function App() {
         method: "POST",
         body: formData,
       });
-      // Server broadcasts map:updated to all clients in the session
     },
     [sessionId]
   );
@@ -74,8 +72,8 @@ export function App() {
 
   if (!session || !connected) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
-        <p>Connecting to session {sessionId}...</p>
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-text-secondary font-body">Connecting to session {sessionId}...</p>
       </div>
     );
   }
@@ -84,20 +82,20 @@ export function App() {
     <>
       <TopBar
         sessionId={session.id}
-        gridMode={session.gridMode}
-        gridSize={session.gridSize}
-        onGridModeChange={handleGridModeChange}
-        onGridSizeChange={handleGridSizeChange}
         onSave={saveSession}
         onToggleSidePanel={() => setSidePanelVisible((v) => !v)}
       />
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      <div className="flex flex-1 overflow-hidden">
         <BattleMap session={session} onMoveToken={moveToken} />
         <SidePanel
           tokens={session.tokens}
+          gridMode={session.gridMode}
+          gridSize={session.gridSize}
           onAddToken={addToken}
           onRemoveToken={removeToken}
           onUploadMap={handleUploadMap}
+          onGridModeChange={handleGridModeChange}
+          onGridSizeChange={handleGridSizeChange}
           visible={sidePanelVisible}
         />
       </div>

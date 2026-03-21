@@ -105,7 +105,7 @@ export function BattleMap({ session, onMoveToken }: Props) {
   );
 
   return (
-    <div ref={containerRef} style={{ flex: 1, overflow: "hidden", background: "#0f0f23" }}>
+    <div ref={containerRef} style={{ flex: 1, overflow: "hidden", background: "#0a0c07" }}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
