@@ -97,7 +97,11 @@ export function BattleMap({ session, onMoveToken }: Props) {
         scaleX={scale}
         scaleY={scale}
         draggable
-        onDragEnd={(e) => setStagePos({ x: e.target.x(), y: e.target.y() })}
+        onDragEnd={(e) => {
+          if (e.target === e.target.getStage()) {
+            setStagePos({ x: e.target.x(), y: e.target.y() });
+          }
+        }}
         onWheel={handleWheel}
       >
         <Layer>
