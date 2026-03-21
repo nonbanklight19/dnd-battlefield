@@ -166,6 +166,85 @@ describe("Admin Session Management", () => {
   });
 });
 
+describe("Admin File Management", () => {
+  let app: express.Express;
+  let db: Database;
+  let state: StateManager;
+  let uploadDir: string;
+  let cookie: string;
+
+  beforeEach(async () => {
+    db = new Database(":memory:");
+    state = new StateManager(db);
+    uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-test-"));
+    app = express();
+    app.use(express.urlencoded({ extended: false }));
+    app.use(createAdminRoutes({
+      state,
+      uploadDir,
+      password: "testpass",
+      maxStorageMb: 1000,
+      maxSessions: 50,
+    }));
+    const loginRes = await request(app).post("/admin/login").send("password=testpass");
+    cookie = loginRes.headers["set-cookie"];
+  });
+
+  afterEach(() => {
+    state.stopAutoSave();
+    db.close();
+    fs.rmSync(uploadDir, { recursive: true, force: true });
+  });
+
+  it("GET /admin/files lists uploaded files", async () => {
+    fs.writeFileSync(path.join(uploadDir, "map1.png"), "fake");
+    const res = await request(app).get("/admin/files").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("map1.png");
+  });
+
+  it("marks orphaned files", async () => {
+    fs.writeFileSync(path.join(uploadDir, "orphan.png"), "fake");
+    const res = await request(app).get("/admin/files").set("Cookie", cookie);
+    expect(res.text).toContain("Orphaned");
+  });
+
+  it("POST /admin/files/:filename/delete removes a file", async () => {
+    fs.writeFileSync(path.join(uploadDir, "todelete.png"), "fake");
+    const res = await request(app)
+      .post("/admin/files/todelete.png/delete")
+      .set("Cookie", cookie);
+    expect(res.status).toBe(302);
+    expect(fs.existsSync(path.join(uploadDir, "todelete.png"))).toBe(false);
+  });
+
+  it("deleting an active file clears session map reference", async () => {
+    const session = state.createSession();
+    fs.writeFileSync(path.join(uploadDir, "active.png"), "fake");
+    state.setMap(session.id, { imageUrl: "/uploads/active.png", width: 100, height: 100 });
+
+    await request(app)
+      .post("/admin/files/active.png/delete")
+      .set("Cookie", cookie);
+
+    expect(state.getSession(session.id)!.map).toBeNull();
+  });
+
+  it("POST /admin/files/orphaned/delete removes all orphaned files", async () => {
+    fs.writeFileSync(path.join(uploadDir, "orphan.png"), "fake");
+    const session = state.createSession();
+    fs.writeFileSync(path.join(uploadDir, "active.png"), "fake");
+    state.setMap(session.id, { imageUrl: "/uploads/active.png", width: 100, height: 100 });
+
+    const res = await request(app)
+      .post("/admin/files/orphaned/delete")
+      .set("Cookie", cookie);
+    expect(res.status).toBe(302);
+    expect(fs.existsSync(path.join(uploadDir, "orphan.png"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadDir, "active.png"))).toBe(true);
+  });
+});
+
 describe("Admin Dashboard", () => {
   let app: express.Express;
   let db: Database;

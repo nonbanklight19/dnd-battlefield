@@ -204,6 +204,57 @@ function renderDashboard(data: DashboardData): string {
   `;
 }
 
+// --- Files template ---
+
+interface FileData extends FileInfo {
+  sessionId: string | null;
+  orphaned: boolean;
+}
+
+function renderFiles(files: FileData[]): string {
+  const rows = files
+    .map(
+      (f) => `
+    <tr>
+      <td>${f.name}</td>
+      <td>${(f.size / 1024).toFixed(1)} KB</td>
+      <td>${f.sessionId ? `<a href="/admin/sessions">${f.sessionId}</a>` : "<em>Orphaned</em>"}</td>
+      <td>
+        <form method="POST" action="/admin/files/${encodeURIComponent(f.name)}/delete" style="display:inline">
+          <button type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>`
+    )
+    .join("");
+  return `
+    <h1>Files</h1>
+    <nav>
+      <a href="/admin/dashboard">Dashboard</a> |
+      <a href="/admin/sessions">Sessions</a> |
+      <form method="POST" action="/admin/logout" style="display:inline">
+        <button type="submit">Logout</button>
+      </form>
+    </nav>
+    <section>
+      <form method="POST" action="/admin/files/orphaned/delete">
+        <button type="submit">Delete All Orphaned Files</button>
+      </form>
+    </section>
+    <section>
+      <h2>Uploaded Files (${files.length})</h2>
+      <table border="1" cellpadding="4">
+        <thead>
+          <tr><th>Name</th><th>Size</th><th>Session</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          ${rows || "<tr><td colspan='4'>No files</td></tr>"}
+        </tbody>
+      </table>
+    </section>
+  `;
+}
+
 // --- Router factory ---
 
 export function createAdminRoutes(config: AdminConfig): Router {
@@ -301,11 +352,47 @@ export function createAdminRoutes(config: AdminConfig): Router {
     res.redirect("/admin/sessions");
   });
 
-  // GET /admin/files — placeholder, requires auth
   router.get("/admin/files", requireAuth, (_req, res) => {
-    res.status(200).send(
-      renderLayout("Admin Files", "<h1>Files</h1><p>Files placeholder.</p>")
+    const files = getUploadedFiles(config.uploadDir);
+    const sessions = config.state.listSessions();
+    const referencedFiles = new Set(
+      sessions.filter((s) => s.map).map((s) => s.map!.imageUrl.replace("/uploads/", ""))
     );
+    const fileData = files.map((f) => ({
+      ...f,
+      sessionId: sessions.find((s) => s.map?.imageUrl === `/uploads/${f.name}`)?.id || null,
+      orphaned: !referencedFiles.has(f.name),
+    }));
+    res.status(200).send(renderLayout("Admin Files", renderFiles(fileData)));
+  });
+
+  router.post("/admin/files/:filename/delete", requireAuth, (req, res) => {
+    const filename = path.basename(req.params.filename);
+
+    // "orphaned" = delete all orphans
+    if (filename === "orphaned") {
+      const files = getUploadedFiles(config.uploadDir);
+      const sessions = config.state.listSessions();
+      const referencedFiles = new Set(
+        sessions.filter((s) => s.map).map((s) => s.map!.imageUrl.replace("/uploads/", ""))
+      );
+      for (const file of files) {
+        if (!referencedFiles.has(file.name)) {
+          try { fs.unlinkSync(path.join(config.uploadDir, file.name)); } catch {}
+        }
+      }
+      return res.redirect("/admin/files");
+    }
+
+    // Clear map reference from any session using this file
+    for (const session of config.state.listSessions()) {
+      if (session.map && session.map.imageUrl === `/uploads/${filename}`) {
+        config.state.clearMap(session.id);
+      }
+    }
+
+    try { fs.unlinkSync(path.join(config.uploadDir, filename)); } catch {}
+    res.redirect("/admin/files");
   });
 
   return router;
