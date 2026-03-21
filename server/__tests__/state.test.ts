@@ -101,4 +101,26 @@ describe("StateManager", () => {
     expect(loaded!.tokens[0].name).toBe("Bard");
     state2.stopAutoSave();
   });
+
+  it("returns session count", () => {
+    state.createSession();
+    state.createSession();
+    expect(state.sessionCount).toBe(2);
+  });
+
+  it("lists all sessions", () => {
+    const s1 = state.createSession();
+    const s2 = state.createSession();
+    const list = state.listSessions();
+    expect(list).toHaveLength(2);
+    expect(list.map((s) => s.id).sort()).toEqual([s1.id, s2.id].sort());
+  });
+
+  it("clears map from a session", () => {
+    const session = state.createSession();
+    state.setMap(session.id, { imageUrl: "/uploads/map.png", width: 100, height: 100 });
+    expect(state.getSession(session.id)!.map).not.toBeNull();
+    state.clearMap(session.id);
+    expect(state.getSession(session.id)!.map).toBeNull();
+  });
 });

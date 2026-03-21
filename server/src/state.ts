@@ -127,6 +127,21 @@ export class StateManager {
     this.db.deleteSession(sessionId);
   }
 
+  get sessionCount(): number {
+    return this.sessions.size;
+  }
+
+  listSessions(): Session[] {
+    return Array.from(this.sessions.values());
+  }
+
+  clearMap(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+    session.map = null;
+    return true;
+  }
+
   cleanupOldSessions(days: number): string[] {
     const deleted = this.db.deleteSessionsOlderThan(days);
     for (const id of deleted) {
