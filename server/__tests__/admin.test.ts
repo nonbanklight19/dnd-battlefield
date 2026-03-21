@@ -89,6 +89,83 @@ describe("Admin Auth", () => {
   });
 });
 
+describe("Admin Session Management", () => {
+  let app: express.Express;
+  let db: Database;
+  let state: StateManager;
+  let uploadDir: string;
+  let cookie: string;
+
+  beforeEach(async () => {
+    db = new Database(":memory:");
+    state = new StateManager(db);
+    uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-test-"));
+    app = express();
+    app.use(express.urlencoded({ extended: false }));
+    app.use(createAdminRoutes({
+      state,
+      uploadDir,
+      password: "testpass",
+      maxStorageMb: 1000,
+      maxSessions: 50,
+    }));
+    const loginRes = await request(app).post("/admin/login").send("password=testpass");
+    cookie = loginRes.headers["set-cookie"];
+  });
+
+  afterEach(() => {
+    state.stopAutoSave();
+    db.close();
+    fs.rmSync(uploadDir, { recursive: true, force: true });
+  });
+
+  it("GET /admin/sessions lists all sessions", async () => {
+    state.createSession();
+    state.createSession();
+    const res = await request(app).get("/admin/sessions").set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Sessions");
+  });
+
+  it("POST /admin/sessions/:id/delete removes a session", async () => {
+    const session = state.createSession();
+    const res = await request(app)
+      .post(`/admin/sessions/${session.id}/delete`)
+      .set("Cookie", cookie);
+    expect(res.status).toBe(302);
+    expect(state.getSession(session.id)).toBeUndefined();
+  });
+
+  it("deleting a session removes its map file", async () => {
+    const session = state.createSession();
+    fs.writeFileSync(path.join(uploadDir, "map.png"), "fake");
+    state.setMap(session.id, { imageUrl: "/uploads/map.png", width: 100, height: 100 });
+
+    await request(app)
+      .post(`/admin/sessions/${session.id}/delete`)
+      .set("Cookie", cookie);
+
+    expect(fs.existsSync(path.join(uploadDir, "map.png"))).toBe(false);
+  });
+
+  it("POST /admin/sessions/cleanup deletes old sessions", async () => {
+    const session = state.createSession();
+    const s = state.getSession(session.id)!;
+    s.createdAt = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    state.saveSession(session.id);
+
+    const fresh = state.createSession();
+
+    const res = await request(app)
+      .post("/admin/sessions/cleanup")
+      .set("Cookie", cookie)
+      .send("days=7");
+    expect(res.status).toBe(302);
+    expect(state.getSession(session.id)).toBeUndefined();
+    expect(state.getSession(fresh.id)).toBeDefined();
+  });
+});
+
 describe("Admin Dashboard", () => {
   let app: express.Express;
   let db: Database;

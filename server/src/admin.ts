@@ -118,6 +118,55 @@ export function countOrphans(files: FileInfo[], sessions: Session[]): number {
   return files.filter((f) => !referencedFiles.has(f.name)).length;
 }
 
+// --- Sessions template ---
+
+function renderSessions(sessions: Session[]): string {
+  const rows = sessions
+    .map(
+      (s) => `
+    <tr>
+      <td>${s.id}</td>
+      <td>${s.createdAt}</td>
+      <td>${s.map ? s.map.imageUrl : "none"}</td>
+      <td>${s.tokens.length}</td>
+      <td>
+        <form method="POST" action="/admin/sessions/${s.id}/delete" style="display:inline">
+          <button type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>`
+    )
+    .join("");
+  return `
+    <h1>Sessions</h1>
+    <nav>
+      <a href="/admin/dashboard">Dashboard</a> |
+      <a href="/admin/files">Files</a> |
+      <form method="POST" action="/admin/logout" style="display:inline">
+        <button type="submit">Logout</button>
+      </form>
+    </nav>
+    <section>
+      <h2>Cleanup Old Sessions</h2>
+      <form method="POST" action="/admin/sessions/cleanup">
+        <label>Delete sessions older than <input type="number" name="days" value="7" min="1" /> days</label>
+        <button type="submit">Cleanup</button>
+      </form>
+    </section>
+    <section>
+      <h2>All Sessions (${sessions.length})</h2>
+      <table border="1" cellpadding="4">
+        <thead>
+          <tr><th>ID</th><th>Created</th><th>Map</th><th>Tokens</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          ${rows || "<tr><td colspan='5'>No sessions</td></tr>"}
+        </tbody>
+      </table>
+    </section>
+  `;
+}
+
 // --- Dashboard template ---
 
 interface DashboardData {
@@ -221,11 +270,35 @@ export function createAdminRoutes(config: AdminConfig): Router {
     })));
   });
 
-  // GET /admin/sessions — placeholder, requires auth
+  // GET /admin/sessions — session list, requires auth
   router.get("/admin/sessions", requireAuth, (_req, res) => {
-    res.status(200).send(
-      renderLayout("Admin Sessions", "<h1>Sessions</h1><p>Sessions placeholder.</p>")
-    );
+    const sessions = config.state.listSessions();
+    res.status(200).send(renderLayout("Admin Sessions", renderSessions(sessions)));
+  });
+
+  // POST /admin/sessions/cleanup — bulk delete old sessions (MUST be before /:id/delete)
+  router.post("/admin/sessions/cleanup", requireAuth, (req, res) => {
+    const days = parseInt(req.body.days, 10) || 7;
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    for (const session of config.state.listSessions()) {
+      if (session.createdAt < cutoff && session.map) {
+        const filename = session.map.imageUrl.replace("/uploads/", "");
+        try { fs.unlinkSync(path.join(config.uploadDir, filename)); } catch {}
+      }
+    }
+    config.state.cleanupOldSessions(days);
+    res.redirect("/admin/sessions");
+  });
+
+  // POST /admin/sessions/:id/delete — remove a single session
+  router.post("/admin/sessions/:id/delete", requireAuth, (req, res) => {
+    const session = config.state.getSession(req.params.id);
+    if (session?.map) {
+      const filename = session.map.imageUrl.replace("/uploads/", "");
+      try { fs.unlinkSync(path.join(config.uploadDir, filename)); } catch {}
+    }
+    config.state.deleteSession(req.params.id);
+    res.redirect("/admin/sessions");
   });
 
   // GET /admin/files — placeholder, requires auth
