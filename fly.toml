@@ -1,23 +1,28 @@
-# fly.toml app configuration file generated for dnd-battlefield on 2026-03-21T17:52:10Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
-app = 'dnd-battlefield'
-primary_region = 'iad'
+app = "dnd-battlefield"
+primary_region = "iad"
 
 [build]
 
 [http_service]
   internal_port = 3001
   force_https = true
-  auto_stop_machines = 'stop'
+  auto_stop_machines = "stop"
   auto_start_machines = true
   min_machines_running = 0
-  processes = ['app']
+
+[mounts]
+  source = "battlefield_data"
+  destination = "/data"
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 1024
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[checks]
+  [checks.health]
+    port = 3001
+    type = "http"
+    interval = "30s"
+    timeout = "5s"
+    path = "/health"
+    grace_period = "15s"
