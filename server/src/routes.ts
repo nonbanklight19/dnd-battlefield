@@ -4,8 +4,14 @@ import path from "path";
 import { nanoid } from "nanoid";
 import type { StateManager } from "./state.js";
 import type { Server } from "socket.io";
+import { storageGuard, sessionLimitGuard } from "./guards.js";
 
-export function createRoutes(state: StateManager, uploadDir: string, io?: Server): Router {
+export interface GuardConfig {
+  maxStorageMb: number;
+  maxSessions: number;
+}
+
+export function createRoutes(state: StateManager, uploadDir: string, io?: Server, guardConfig?: GuardConfig): Router {
   const router = Router();
 
   const storage = multer.diskStorage({
@@ -21,10 +27,14 @@ export function createRoutes(state: StateManager, uploadDir: string, io?: Server
     res.json({ status: "ok" });
   });
 
-  router.post("/api/sessions", (_req, res) => {
-    const session = state.createSession();
-    res.status(201).json(session);
-  });
+  router.post(
+    "/api/sessions",
+    ...(guardConfig ? [sessionLimitGuard(() => state.sessionCount, guardConfig.maxSessions)] : []),
+    (_req, res) => {
+      const session = state.createSession();
+      res.status(201).json(session);
+    }
+  );
 
   router.get("/api/sessions/:id", (req, res) => {
     const session = state.getSession(req.params.id);
@@ -32,25 +42,30 @@ export function createRoutes(state: StateManager, uploadDir: string, io?: Server
     res.json(session);
   });
 
-  router.post("/api/sessions/:id/map", upload.single("map"), (req, res) => {
-    const session = state.getSession(req.params.id);
-    if (!session) return res.status(404).json({ error: "Session not found" });
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  router.post(
+    "/api/sessions/:id/map",
+    ...(guardConfig ? [storageGuard(uploadDir, guardConfig.maxStorageMb)] : []),
+    upload.single("map"),
+    (req, res) => {
+      const session = state.getSession(req.params.id);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const imageUrl = `/uploads/${req.file.filename}`;
-    state.setMap(session.id, {
-      imageUrl,
-      width: Number(req.body.width) || 0,
-      height: Number(req.body.height) || 0,
-    });
+      const imageUrl = `/uploads/${req.file.filename}`;
+      state.setMap(session.id, {
+        imageUrl,
+        width: Number(req.body.width) || 0,
+        height: Number(req.body.height) || 0,
+      });
 
-    // Broadcast map update to all clients in the session
-    if (io) {
-      io.to(session.id).emit("map:updated", session.map);
+      // Broadcast map update to all clients in the session
+      if (io) {
+        io.to(session.id).emit("map:updated", session.map);
+      }
+
+      res.json(session.map);
     }
-
-    res.json(session.map);
-  });
+  );
 
   router.use("/uploads", serveStatic(uploadDir));
 
