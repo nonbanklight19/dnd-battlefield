@@ -20,6 +20,11 @@ export function App() {
 
   const handleCreate = async () => {
     const res = await fetch("/api/sessions", { method: "POST" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Failed to create session" }));
+      alert(data.error);
+      return;
+    }
     const data = await res.json();
     setSessionId(data.id);
     window.history.pushState(null, "", `/${data.id}`);
@@ -44,10 +49,14 @@ export function App() {
       formData.append("height", String(img.height));
       URL.revokeObjectURL(url);
 
-      await fetch(`/api/sessions/${sessionId}/map`, {
+      const res = await fetch(`/api/sessions/${sessionId}/map`, {
         method: "POST",
         body: formData,
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Failed to upload map" }));
+        alert(data.error);
+      }
     },
     [sessionId]
   );
