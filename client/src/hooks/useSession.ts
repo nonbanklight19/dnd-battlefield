@@ -1,0 +1,135 @@
+import { useState, useEffect, useCallback } from "react";
+import type { Socket } from "socket.io-client";
+import type { SessionState, Token, GridMode, MapData } from "../types.js";
+
+export function useSession(socket: Socket | null, sessionId: string | null) {
+  const [session, setSession] = useState<SessionState | null>(null);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    if (!socket || !sessionId) return;
+
+    socket.emit("session:join", sessionId);
+
+    const onState = (data: SessionState) => {
+      setSession(data);
+      setConnected(true);
+    };
+    const onError = (err: { message: string }) => {
+      console.error("Session error:", err.message);
+      setConnected(false);
+    };
+    const onTokenAdded = (token: Token) => {
+      setSession((prev) =>
+        prev ? { ...prev, tokens: [...prev.tokens, token] } : prev
+      );
+    };
+    const onTokenMoved = (data: { id: string; x: number; y: number }) => {
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              tokens: prev.tokens.map((t) =>
+                t.id === data.id ? { ...t, x: data.x, y: data.y } : t
+              ),
+            }
+          : prev
+      );
+    };
+    const onTokenRemoved = (data: { id: string }) => {
+      setSession((prev) =>
+        prev
+          ? { ...prev, tokens: prev.tokens.filter((t) => t.id !== data.id) }
+          : prev
+      );
+    };
+    const onGridUpdated = (data: { gridMode: GridMode; gridSize: number }) => {
+      setSession((prev) =>
+        prev ? { ...prev, gridMode: data.gridMode, gridSize: data.gridSize } : prev
+      );
+    };
+    const onMapUpdated = (data: MapData) => {
+      setSession((prev) => (prev ? { ...prev, map: data } : prev));
+    };
+    const onReconnect = () => {
+      socket.emit("session:join", sessionId);
+    };
+
+    socket.on("session:state", onState);
+    socket.on("session:error", onError);
+    socket.on("token:added", onTokenAdded);
+    socket.on("token:moved", onTokenMoved);
+    socket.on("token:removed", onTokenRemoved);
+    socket.on("grid:updated", onGridUpdated);
+    socket.on("map:updated", onMapUpdated);
+    socket.io.on("reconnect", onReconnect);
+
+    return () => {
+      socket.off("session:state", onState);
+      socket.off("session:error", onError);
+      socket.off("token:added", onTokenAdded);
+      socket.off("token:moved", onTokenMoved);
+      socket.off("token:removed", onTokenRemoved);
+      socket.off("grid:updated", onGridUpdated);
+      socket.off("map:updated", onMapUpdated);
+      socket.io.off("reconnect", onReconnect);
+    };
+  }, [socket, sessionId]);
+
+  const addToken = useCallback(
+    (data: { name: string; color: string; x: number; y: number }) => {
+      socket?.emit("token:add", data);
+    },
+    [socket]
+  );
+
+  const moveToken = useCallback(
+    (id: string, x: number, y: number) => {
+      // Optimistic update
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              tokens: prev.tokens.map((t) =>
+                t.id === id ? { ...t, x, y } : t
+              ),
+            }
+          : prev
+      );
+      socket?.emit("token:move", { id, x, y });
+    },
+    [socket]
+  );
+
+  const removeToken = useCallback(
+    (id: string) => {
+      socket?.emit("token:remove", { id });
+    },
+    [socket]
+  );
+
+  const updateGrid = useCallback(
+    (gridMode: GridMode, gridSize: number) => {
+      socket?.emit("grid:update", { gridMode, gridSize });
+      // Optimistic update
+      setSession((prev) =>
+        prev ? { ...prev, gridMode, gridSize } : prev
+      );
+    },
+    [socket]
+  );
+
+  const saveSession = useCallback(() => {
+    socket?.emit("session:save");
+  }, [socket]);
+
+  return {
+    session,
+    connected,
+    addToken,
+    moveToken,
+    removeToken,
+    updateGrid,
+    saveSession,
+  };
+}
