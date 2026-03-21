@@ -12,7 +12,9 @@ Add a server-side rendered admin panel at `/admin` for managing sessions, upload
 - All `/admin/*` routes check the cookie; invalid/missing redirects to login
 - Token is ephemeral (in-memory) — server restart logs out, acceptable for single-user admin
 - `POST /admin/logout` clears the cookie
-- No new dependencies — uses Node `crypto` and Express cookie handling
+- Cookie options: `httpOnly`, `secure` in production (`NODE_ENV=production`), `sameSite: 'strict'`
+- No new dependencies — uses Node `crypto` and manual cookie parsing (`req.headers.cookie`)
+- If `ADMIN_PASSWORD` is not set, admin routes are disabled (not mounted) and a warning is logged at startup. The app runs normally without admin.
 
 ## Admin Routes
 
@@ -56,14 +58,17 @@ Quick actions: "Delete sessions older than 7 days" and "Delete orphaned files".
 
 ### Orphan Detection
 
-Scan uploads directory, cross-reference each filename against all session map `imageUrl` values. Any file not referenced by a session is orphaned.
+Scan uploads directory, cross-reference each filename against all session map `imageUrl` values (stripping the `/uploads/` prefix from `imageUrl` for comparison). Any file not referenced by a session is orphaned.
+
+Note: the existing auto-cleanup in `index.ts` deletes old sessions but does not delete their map files, which creates orphans. Fix the auto-cleanup to also delete map files when removing sessions.
 
 ## Resource Guards
 
 ### Disk Usage Guard
 
 - Before multer processes an upload, middleware calculates total size of uploads directory (`fs.readdirSync` + `statSync`)
-- If current total + incoming file size > `MAX_STORAGE_MB` → reject with 507 and `{ error: "Storage limit reached" }`
+- Uses `Content-Length` header as a conservative approximation of file size (includes multipart overhead, so slightly overestimates — acceptable)
+- If current total + `Content-Length` > `MAX_STORAGE_MB` → reject with 507 and `{ error: "Storage limit reached" }`
 - Check happens before multer saves the file to avoid write-then-delete
 
 ### Session Limit Guard
@@ -80,7 +85,7 @@ Scan uploads directory, cross-reference each filename against all session map `i
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ADMIN_PASSWORD` | (required, no default) | Admin login password |
+| `ADMIN_PASSWORD` | (no default — admin disabled if unset) | Admin login password |
 | `MAX_STORAGE_MB` | `1000` | Max total upload storage in MB |
 | `MAX_SESSIONS` | `50` | Max concurrent sessions |
 
@@ -92,7 +97,7 @@ Scan uploads directory, cross-reference each filename against all session map `i
 
 ### Modified files
 
-- `server/src/index.ts` — mount admin routes, pass upload dir config
+- `server/src/index.ts` — mount admin routes **before** the static file serving and catch-all `*` route (which serves the React SPA). Admin routes must take priority over the catch-all.
 - `server/src/routes.ts` — add resource guard middleware to upload and session creation routes
 - `server/src/state.ts` — expose `sessionCount` getter and `listSessions()` for admin views
 - `client/src/App.tsx` — add error handling for 507 responses on session create and map upload
