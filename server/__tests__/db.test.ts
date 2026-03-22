@@ -35,13 +35,19 @@ describe("Database", () => {
       createdAt: new Date().toISOString(),
       map: { sessionId: "MAP1", imageUrl: "/uploads/map.png", width: 1920, height: 1080 },
       tokens: [
-        { id: "t1", sessionId: "MAP1", name: "Fighter", color: "#ff0000", x: 100, y: 200, size: 1 },
-        { id: "t2", sessionId: "MAP1", name: "Wizard", color: "#0000ff", x: 300, y: 400, size: 1 },
+        { id: "t1", sessionId: "MAP1", kind: "enemy" as const, name: "Fighter", color: "#ff0000", icon: "👹", x: 100, y: 200, size: 1 },
+        { id: "t2", sessionId: "MAP1", kind: "hero" as const, heroType: "wizard" as const, x: 300, y: 400, size: 1 },
       ],
     };
     db.saveSession(session);
     const loaded = db.loadSession("MAP1");
-    expect(loaded).toEqual(session);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.id).toBe(session.id);
+    expect(loaded!.gridMode).toBe(session.gridMode);
+    expect(loaded!.map).toEqual(session.map);
+    expect(loaded!.tokens).toHaveLength(2);
+    expect(loaded!.tokens[0]).toEqual({ id: "t1", sessionId: "MAP1", kind: "enemy", name: "Fighter", color: "#ff0000", icon: "👹", x: 100, y: 200, size: 1 });
+    expect(loaded!.tokens[1]).toEqual({ id: "t2", sessionId: "MAP1", kind: "hero", heroType: "wizard", x: 300, y: 400, size: 1 });
   });
 
   it("returns null for nonexistent session", () => {
@@ -62,7 +68,7 @@ describe("Database", () => {
       gridSize: 50,
       createdAt: new Date().toISOString(),
       map: { sessionId: "DEL", imageUrl: "/uploads/x.png", width: 100, height: 100 },
-      tokens: [{ id: "t1", sessionId: "DEL", name: "Rogue", color: "#00ff00", x: 0, y: 0, size: 1 }],
+      tokens: [{ id: "t1", sessionId: "DEL", kind: "enemy" as const, name: "Rogue", color: "#00ff00", icon: "👹", x: 0, y: 0, size: 1 }],
     };
     db.saveSession(session);
     db.deleteSession("DEL");

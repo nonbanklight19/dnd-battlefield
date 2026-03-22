@@ -95,7 +95,7 @@ Note: the existing auto-cleanup in `index.ts` deletes old sessions but does not 
 
 - `server/src/admin.ts` — admin routes, auth middleware, HTML template functions
 
-### Modified files
+### Modified fi
 
 - `server/src/index.ts` — mount admin routes **before** the static file serving and catch-all `*` route (which serves the React SPA). Admin routes must take priority over the catch-all.
 - `server/src/routes.ts` — add resource guard middleware to upload and session creation routes

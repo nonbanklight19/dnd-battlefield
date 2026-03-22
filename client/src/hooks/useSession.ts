@@ -88,9 +88,16 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
     };
   }, [socket, sessionId]);
 
-  const addToken = useCallback(
-    (data: { name: string; color: string; x: number; y: number }) => {
-      socket?.emit("token:add", data);
+  const addHero = useCallback(
+    (data: { heroType: string; x: number; y: number }) => {
+      socket?.emit("token:add-hero", data);
+    },
+    [socket]
+  );
+
+  const addEnemy = useCallback(
+    (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => {
+      socket?.emit("token:add-enemy", data);
     },
     [socket]
   );
@@ -141,7 +148,8 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
     connected,
     error,
     saveStatus,
-    addToken,
+    addHero,
+    addEnemy,
     moveToken,
     removeToken,
     updateGrid,

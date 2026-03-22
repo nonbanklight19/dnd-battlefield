@@ -1,5 +1,5 @@
 import BetterSqlite3 from "better-sqlite3";
-import type { Session, Token, MapData } from "./types.js";
+import type { Session, Token, MapData, HeroType } from "./types.js";
 
 export class Database {
   private db: BetterSqlite3.Database;
@@ -25,11 +25,16 @@ export class Database {
         width INTEGER NOT NULL,
         height INTEGER NOT NULL
       );
+      DROP TABLE IF EXISTS tokens;
       CREATE TABLE IF NOT EXISTS tokens (
         id TEXT PRIMARY KEY,
         sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        name TEXT NOT NULL,
-        color TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'enemy',
+        heroType TEXT,
+        name TEXT,
+        color TEXT,
+        icon TEXT,
+        customImage TEXT,
         x REAL NOT NULL,
         y REAL NOT NULL,
         size INTEGER NOT NULL DEFAULT 1
@@ -57,10 +62,15 @@ export class Database {
       }
 
       const insertToken = this.db.prepare(
-        `INSERT INTO tokens (id, sessionId, name, color, x, y, size) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO tokens (id, sessionId, kind, heroType, name, color, icon, customImage, x, y, size)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       for (const t of session.tokens) {
-        insertToken.run(t.id, t.sessionId, t.name, t.color, t.x, t.y, t.size);
+        if (t.kind === "hero") {
+          insertToken.run(t.id, t.sessionId, "hero", t.heroType, null, null, null, null, t.x, t.y, t.size);
+        } else {
+          insertToken.run(t.id, t.sessionId, "enemy", null, t.name, t.color, t.icon, t.customImage ?? null, t.x, t.y, t.size);
+        }
       }
     });
     tx();
@@ -79,7 +89,26 @@ export class Database {
 
     const tokenRows = this.db
       .prepare(`SELECT * FROM tokens WHERE sessionId = ?`)
-      .all(id) as Token[];
+      .all(id) as Array<{
+        id: string; sessionId: string; kind: string; heroType: string | null;
+        name: string | null; color: string | null; icon: string | null;
+        customImage: string | null; x: number; y: number; size: number;
+      }>;
+
+    const tokens: Token[] = tokenRows.map((row) => {
+      if (row.kind === "hero") {
+        return {
+          id: row.id, sessionId: row.sessionId, kind: "hero" as const,
+          heroType: row.heroType as HeroType, x: row.x, y: row.y, size: row.size,
+        };
+      }
+      return {
+        id: row.id, sessionId: row.sessionId, kind: "enemy" as const,
+        name: row.name!, color: row.color!, icon: row.icon!,
+        ...(row.customImage ? { customImage: row.customImage } : {}),
+        x: row.x, y: row.y, size: row.size,
+      };
+    });
 
     return {
       id: row.id,
@@ -87,7 +116,7 @@ export class Database {
       gridSize: row.gridSize,
       createdAt: row.createdAt,
       map: mapRow ?? null,
-      tokens: tokenRows,
+      tokens,
     };
   }
 

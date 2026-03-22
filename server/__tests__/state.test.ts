@@ -37,15 +37,34 @@ describe("StateManager", () => {
 
   it("adds a token to a session", () => {
     const session = state.createSession();
-    const token = state.addToken(session.id, { name: "Fighter", color: "#ff0000", x: 100, y: 200 });
+    const token = state.addEnemy(session.id, { name: "Fighter", color: "#ff0000", icon: "👹", x: 100, y: 200 });
     expect(token).toBeDefined();
     expect(token!.name).toBe("Fighter");
     expect(state.getSession(session.id)!.tokens).toHaveLength(1);
   });
 
+  it("adds a hero token to a session", () => {
+    const session = state.createSession();
+    const token = state.addHero(session.id, { heroType: "warrior", x: 100, y: 200 });
+    expect(token).toBeDefined();
+    expect(token!.kind).toBe("hero");
+    if (token!.kind === "hero") {
+      expect(token!.heroType).toBe("warrior");
+    }
+    expect(state.getSession(session.id)!.tokens).toHaveLength(1);
+  });
+
+  it("prevents duplicate hero types", () => {
+    const session = state.createSession();
+    state.addHero(session.id, { heroType: "warrior", x: 100, y: 200 });
+    const dupe = state.addHero(session.id, { heroType: "warrior", x: 300, y: 400 });
+    expect(dupe).toBeUndefined();
+    expect(state.getSession(session.id)!.tokens).toHaveLength(1);
+  });
+
   it("moves a token", () => {
     const session = state.createSession();
-    const token = state.addToken(session.id, { name: "Rogue", color: "#00ff00", x: 0, y: 0 });
+    const token = state.addEnemy(session.id, { name: "Rogue", color: "#00ff00", icon: "👹", x: 0, y: 0 });
     state.moveToken(session.id, token!.id, 500, 600);
     const updated = state.getSession(session.id)!.tokens[0];
     expect(updated.x).toBe(500);
@@ -54,7 +73,7 @@ describe("StateManager", () => {
 
   it("removes a token", () => {
     const session = state.createSession();
-    const token = state.addToken(session.id, { name: "Wizard", color: "#0000ff", x: 0, y: 0 });
+    const token = state.addEnemy(session.id, { name: "Wizard", color: "#0000ff", icon: "👹", x: 0, y: 0 });
     state.removeToken(session.id, token!.id);
     expect(state.getSession(session.id)!.tokens).toHaveLength(0);
   });
@@ -81,7 +100,7 @@ describe("StateManager", () => {
 
   it("saves a session to the database", () => {
     const session = state.createSession();
-    state.addToken(session.id, { name: "Paladin", color: "#ffff00", x: 50, y: 50 });
+    state.addEnemy(session.id, { name: "Paladin", color: "#ffff00", icon: "👹", x: 50, y: 50 });
     state.saveSession(session.id);
     const loaded = db.loadSession(session.id);
     expect(loaded).not.toBeNull();
@@ -90,7 +109,7 @@ describe("StateManager", () => {
 
   it("loads sessions from database on init", () => {
     const session = state.createSession();
-    state.addToken(session.id, { name: "Bard", color: "#ff00ff", x: 10, y: 20 });
+    state.addEnemy(session.id, { name: "Bard", color: "#ff00ff", icon: "👹", x: 10, y: 20 });
     state.saveSession(session.id);
 
     // Create new state manager — should load from DB
@@ -98,7 +117,10 @@ describe("StateManager", () => {
     const loaded = state2.getSession(session.id);
     expect(loaded).toBeDefined();
     expect(loaded!.tokens).toHaveLength(1);
-    expect(loaded!.tokens[0].name).toBe("Bard");
+    expect(loaded!.tokens[0].kind).toBe("enemy");
+    if (loaded!.tokens[0].kind === "enemy") {
+      expect(loaded!.tokens[0].name).toBe("Bard");
+    }
     state2.stopAutoSave();
   });
 

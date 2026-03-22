@@ -72,14 +72,15 @@ describe("Socket Events", () => {
     await waitFor(client2, "session:state");
 
     const addedPromise = waitFor(client2, "token:added");
-    client1.emit("token:add", { name: "Fighter", color: "#ff0000", x: 100, y: 200 });
+    client1.emit("token:add-enemy", { name: "Fighter", color: "#ff0000", icon: "👹", x: 100, y: 200 });
     const token = await addedPromise;
+    expect(token.kind).toBe("enemy");
     expect(token.name).toBe("Fighter");
   });
 
   it("broadcasts token:moved to other clients", async () => {
     const session = state.createSession();
-    const t = state.addToken(session.id, { name: "Rogue", color: "#00ff00", x: 0, y: 0 });
+    const t = state.addEnemy(session.id, { name: "Rogue", color: "#00ff00", icon: "👹", x: 0, y: 0 });
     client1 = connect();
     client2 = connect();
     client1.emit("session:join", session.id);
@@ -96,7 +97,7 @@ describe("Socket Events", () => {
 
   it("broadcasts token:removed to other clients", async () => {
     const session = state.createSession();
-    const t = state.addToken(session.id, { name: "Wizard", color: "#0000ff", x: 0, y: 0 });
+    const t = state.addEnemy(session.id, { name: "Wizard", color: "#0000ff", icon: "👹", x: 0, y: 0 });
     client1 = connect();
     client2 = connect();
     client1.emit("session:join", session.id);
@@ -128,7 +129,7 @@ describe("Socket Events", () => {
 
   it("triggers save on session:save event", async () => {
     const session = state.createSession();
-    state.addToken(session.id, { name: "Paladin", color: "#ffff00", x: 10, y: 20 });
+    state.addEnemy(session.id, { name: "Paladin", color: "#ffff00", icon: "👹", x: 10, y: 20 });
     client1 = connect();
     client1.emit("session:join", session.id);
     await waitFor(client1, "session:state");

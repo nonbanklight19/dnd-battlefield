@@ -21,10 +21,26 @@ export function setupSocketHandlers(io: Server, state: StateManager) {
       socket.emit("session:state", session);
     });
 
-    socket.on("token:add", (data: { name: string; color: string; x: number; y: number }) => {
+    socket.on("token:add-hero", (data: { heroType: string; x: number; y: number }) => {
       const sessionId = clientSessions.get(socket.id);
       if (!sessionId) return;
-      const token = state.addToken(sessionId, data);
+      const validTypes = ["warrior", "wizard", "rogue", "dwarf", "triton"];
+      if (!validTypes.includes(data.heroType)) return;
+      const token = state.addHero(sessionId, {
+        heroType: data.heroType as any,
+        x: data.x,
+        y: data.y,
+      });
+      if (token) {
+        socket.to(sessionId).emit("token:added", token);
+        socket.emit("token:added", token);
+      }
+    });
+
+    socket.on("token:add-enemy", (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => {
+      const sessionId = clientSessions.get(socket.id);
+      if (!sessionId) return;
+      const token = state.addEnemy(sessionId, data);
       if (token) {
         socket.to(sessionId).emit("token:added", token);
         socket.emit("token:added", token);
