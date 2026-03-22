@@ -1,13 +1,29 @@
 export type GridMode = "none" | "square" | "hex";
 
-export interface Token {
+export type HeroType = "warrior" | "wizard" | "rogue" | "dwarf" | "triton";
+
+export interface HeroToken {
   id: string;
-  name: string;
-  color: string;
+  kind: "hero";
+  heroType: HeroType;
   x: number;
   y: number;
   size: number;
 }
+
+export interface EnemyToken {
+  id: string;
+  kind: "enemy";
+  name: string;
+  color: string;
+  icon: string;
+  customImage?: string;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export type Token = HeroToken | EnemyToken;
 
 export interface MapData {
   imageUrl: string;
