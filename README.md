@@ -9,12 +9,54 @@ Built for personal use with a small friend group. No accounts, no auth — just 
 - **Real-time sync** — token movements broadcast instantly via WebSocket (Socket.io)
 - **Battle map upload** — drag-and-drop any image as your map background
 - **Hero tokens** — pick from preset figurine-style hero images
-- **Enemy tokens** — custom name + color
+- **Enemy tokens** — custom name + color + optional icon
 - **Grid overlay** — toggleable square or hex grid with configurable cell size
 - **Snap-to-grid** — tokens snap to the nearest cell center when grid is active
 - **Pan & zoom** — navigate large maps with mouse drag + scroll wheel
-- **Auto-save** — session state persists to SQLite every 30 seconds
+- **Token statuses** — mark tokens as **Dead** (red cross overlay); dead tokens are removed from the initiative tracker automatically
+- **Role selection** — choose **DM** or **Player** on session join; DM-only controls (grid, map upload) are hidden from players
+- **Auto-save** — session state persists to SQLite every 5 minutes (global, not per-user)
+- **Initiative Tracker** — separate page, synced to the session by room code (see below)
+- **Turn notifications** — toast shown on the battle map when initiative advances or a token is marked dead
 - **Admin panel** — optional server management UI (enabled via `ADMIN_PASSWORD` env var)
+
+## Initiative Tracker
+
+Open `/<SESSION_CODE>/initiative` in any browser to get the initiative tracker for that session. It is a separate full-screen page that stays in sync with the battle map via the same socket room.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Rows** | Each row has Initiative, Name, HP, AC fields — all editable inline |
+| **Auto-population** | When a hero or enemy token is added to the map a row is automatically added. When removed or marked Dead the row is removed |
+| **Hero defaults** | Set default HP and AC per hero type via **OPTIONS → Heroes**. Applied automatically when the hero token is placed on the map |
+| **NEXT** | Advances the highlighted row to the next combatant; wraps to round start and increments the round counter |
+| **SORT** | Sorts all rows by initiative value descending |
+| **Drag to reorder** | Hold the ⠿ handle to drag rows into a custom order |
+| **Export / Import** | **OPTIONS → Export** saves the current rows as a JSON file. **OPTIONS → Import** loads rows from a JSON file (replaces current rows) |
+| **Clear** | **OPTIONS → Clear** resets all rows and the round counter (with confirmation) |
+| **Turn highlight** | The active row is highlighted in green; a gold pulsing ring appears on the corresponding token on the battle map for 5 seconds |
+| **Death notification** | Marking a token Dead shows a skull toast on the battle map for all connected clients |
+| **Persistence** | Rows, active index, and round are saved to SQLite alongside session data |
+
+### JSON export format
+
+```json
+[
+  { "initiative": 18, "name": "Warrior", "hp": 45, "ac": 16 },
+  { "initiative": 12, "name": "Goblin",  "hp": 7,  "ac": 13 },
+  { "initiative": null, "name": "Unknown", "hp": null, "ac": null }
+]
+```
+
+### Database tables
+
+| Table | Purpose |
+|-------|---------|
+| `initiative_meta` | One row per session — stores `activeIndex` and `round` |
+| `initiative_rows` | One row per combatant — `id`, `sessionId`, `tokenId` (optional link to a battlefield token), `initiative`, `name`, `hp`, `ac`, `position` |
+| `hero_configs` | Saved default HP/AC per hero type per session |
 
 ## Tech Stack
 

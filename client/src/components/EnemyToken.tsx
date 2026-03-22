@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Circle, Text, Group, Rect, Image as KonvaImage } from "react-konva";
+import { useState, useEffect, useRef } from "react";
+import { Circle, Text, Group, Rect, Image as KonvaImage, Line } from "react-konva";
 import Konva from "konva";
 import type { EnemyToken as EnemyTokenType } from "../types.js";
 
@@ -7,13 +7,16 @@ interface Props {
   token: EnemyTokenType;
   gridSize: number;
   onDragEnd: (id: string, x: number, y: number) => void;
+  isActiveTurn?: boolean;
 }
 
 const imageCache = new Map<string, HTMLImageElement>();
 
-export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
+export function EnemyTokenComponent({ token, gridSize, onDragEnd, isActiveTurn }: Props) {
   const radius = (gridSize * token.size) / 2.5;
   const [customImg, setCustomImg] = useState<HTMLImageElement | null>(null);
+  const ringRef = useRef<Konva.Circle | null>(null);
+  const animRef = useRef<Konva.Animation | null>(null);
 
   useEffect(() => {
     if (!token.customImage) {
@@ -33,9 +36,29 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
     };
   }, [token.customImage]);
 
+  useEffect(() => {
+    const ring = ringRef.current;
+    if (!ring) return;
+    if (isActiveTurn) {
+      animRef.current = new Konva.Animation((frame) => {
+        if (!frame) return;
+        const opacity = 0.5 + 0.5 * Math.sin((frame.time / 600) * Math.PI * 2);
+        ring.opacity(opacity);
+      }, ring.getLayer());
+      animRef.current.start();
+    } else {
+      animRef.current?.stop();
+      animRef.current = null;
+      ring.opacity(0);
+      ring.getLayer()?.batchDraw();
+    }
+    return () => { animRef.current?.stop(); animRef.current = null; };
+  }, [isActiveTurn]);
+
   const nameFontSize = Math.max(8, radius * 0.5);
   const plateWidth = Math.max(radius * 2, token.name.length * nameFontSize * 0.6);
   const plateHeight = nameFontSize + 6;
+  const isDead = token.statuses?.includes("dead") ?? false;
 
   return (
     <Group
@@ -50,6 +73,16 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
         onDragEnd(token.id, x, y);
       }}
     >
+      {/* Active turn ring */}
+      <Circle
+        ref={ringRef}
+        radius={radius + 6}
+        stroke="#f6e05e"
+        strokeWidth={3}
+        fill="transparent"
+        opacity={0}
+        listening={false}
+      />
       <Circle
         radius={radius}
         fill="transparent"
@@ -119,6 +152,25 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
         y={radius + 4}
         listening={false}
       />
+      {isDead && (
+        <>
+          <Circle radius={radius} fill="rgba(0,0,0,0.45)" listening={false} />
+          <Line
+            points={[-(radius * 0.6), -(radius * 0.6), radius * 0.6, radius * 0.6]}
+            stroke="#e53e3e"
+            strokeWidth={Math.max(2, radius * 0.18)}
+            lineCap="round"
+            listening={false}
+          />
+          <Line
+            points={[radius * 0.6, -(radius * 0.6), -(radius * 0.6), radius * 0.6]}
+            stroke="#e53e3e"
+            strokeWidth={Math.max(2, radius * 0.18)}
+            lineCap="round"
+            listening={false}
+          />
+        </>
+      )}
     </Group>
   );
 }

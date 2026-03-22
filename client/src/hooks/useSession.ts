@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Socket } from "socket.io-client";
-import type { SessionState, Token, GridMode, MapData } from "../types.js";
+import type { SessionState, Token, GridMode, MapData, TokenStatus } from "../types.js";
 
 export function useSession(socket: Socket | null, sessionId: string | null) {
   const [session, setSession] = useState<SessionState | null>(null);
@@ -61,6 +61,13 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
     };
+    const onTokenStatusUpdated = (data: { id: string; statuses: TokenStatus[] }) => {
+      setSession((prev) =>
+        prev
+          ? { ...prev, tokens: prev.tokens.map((t) => t.id === data.id ? { ...t, statuses: data.statuses } : t) }
+          : prev
+      );
+    };
     const onReconnect = () => {
       socket.emit("session:join", sessionId);
     };
@@ -73,6 +80,7 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
     socket.on("grid:updated", onGridUpdated);
     socket.on("map:updated", onMapUpdated);
     socket.on("session:saved", onSessionSaved);
+    socket.on("token:status-updated", onTokenStatusUpdated);
     socket.io.on("reconnect", onReconnect);
 
     return () => {
@@ -84,6 +92,7 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
       socket.off("grid:updated", onGridUpdated);
       socket.off("map:updated", onMapUpdated);
       socket.off("session:saved", onSessionSaved);
+      socket.off("token:status-updated", onTokenStatusUpdated);
       socket.io.off("reconnect", onReconnect);
     };
   }, [socket, sessionId]);
@@ -143,6 +152,29 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
     socket?.emit("session:save");
   }, [socket]);
 
+  const setTokenStatus = useCallback(
+    (id: string, status: TokenStatus, active: boolean) => {
+      // Optimistic update
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              tokens: prev.tokens.map((t) => {
+                if (t.id !== id) return t;
+                const current = t.statuses ?? [];
+                const statuses = active
+                  ? current.includes(status) ? current : [...current, status]
+                  : current.filter((s) => s !== status);
+                return { ...t, statuses };
+              }),
+            }
+          : prev
+      );
+      socket?.emit("token:set-status", { id, status, active });
+    },
+    [socket]
+  );
+
   return {
     session,
     connected,
@@ -154,5 +186,6 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
     removeToken,
     updateGrid,
     saveSession,
+    setTokenStatus,
   };
 }
