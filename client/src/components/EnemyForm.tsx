@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
-
-const PRESET_ICONS = ["\u{1F479}", "\u{1F480}", "\u{1F409}", "\u{1F577}\uFE0F", "\u{1F43A}", "\u{1F9DF}", "\u{1F47B}", "\u{1F987}", "\u{1F40D}", "\u{1F9CC}", "\u{1F525}", "\u26A1"];
+import { useState, useRef, useMemo } from "react";
+import iconNames from "../data/icon-names.json";
 
 const PRESET_COLORS = [
   "#e05252", "#f59e0b", "#4ade80", "#3b82f6",
@@ -14,18 +13,26 @@ interface Props {
 
 export function EnemyForm({ sessionId, onAddEnemy }: Props) {
   const [name, setName] = useState("");
-  const [icon, setIcon] = useState(PRESET_ICONS[0]);
-  const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [iconSearch, setIconSearch] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
   const [customImage, setCustomImage] = useState<string | null>(null);
+  const [color, setColor] = useState(PRESET_COLORS[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredIcons = useMemo(() => {
+    if (!iconSearch.trim()) return iconNames.slice(0, 50);
+    const term = iconSearch.toLowerCase();
+    return iconNames.filter((n) => n.includes(term)).slice(0, 50);
+  }, [iconSearch]);
 
   const handleAdd = () => {
     if (!name.trim()) return;
+    const iconUrl = customImage ?? (selectedIcon ? `/icons/${selectedIcon}.png` : `/icons/${iconNames[0]}.png`);
     onAddEnemy({
       name: name.trim(),
       color,
-      icon,
-      ...(customImage ? { customImage } : {}),
+      icon: selectedIcon ?? iconNames[0],
+      customImage: iconUrl,
       x: 100,
       y: 100,
     });
@@ -45,7 +52,13 @@ export function EnemyForm({ sessionId, onAddEnemy }: Props) {
     if (res.ok) {
       const data = await res.json();
       setCustomImage(data.imageUrl);
+      setSelectedIcon(null);
     }
+  };
+
+  const handleSelectIcon = (iconName: string) => {
+    setSelectedIcon(iconName);
+    setCustomImage(null);
   };
 
   return (
@@ -60,34 +73,44 @@ export function EnemyForm({ sessionId, onAddEnemy }: Props) {
       />
 
       <span className="text-[10px] uppercase tracking-[1px] text-text-muted block mb-2">Icon</span>
-      <div className="flex gap-1.5 flex-wrap mb-4">
-        {PRESET_ICONS.map((ic) => (
+      <input
+        type="text"
+        placeholder="Search icons..."
+        value={iconSearch}
+        onChange={(e) => setIconSearch(e.target.value)}
+        className="w-full py-2 px-3 bg-bg-deep border border-border-default rounded-lg text-text-primary text-xs outline-none transition-all duration-150 focus:border-gold-muted focus:shadow-[0_0_0_3px_rgba(202,169,104,0.15)] mb-2"
+      />
+      <div className="flex gap-1.5 flex-wrap mb-2 max-h-[160px] overflow-y-auto">
+        {filteredIcons.map((iconName) => (
           <div
-            key={ic}
-            onClick={() => { setIcon(ic); setCustomImage(null); }}
-            className="w-8 h-8 rounded-md flex items-center justify-center text-lg cursor-pointer transition-all duration-150"
+            key={iconName}
+            onClick={() => handleSelectIcon(iconName)}
+            className="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150"
+            title={iconName}
             style={{
-              background: icon === ic && !customImage ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
-              border: icon === ic && !customImage
+              background: selectedIcon === iconName && !customImage ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.03)",
+              border: selectedIcon === iconName && !customImage
                 ? "2px solid var(--color-gold-bright, #caa968)"
                 : "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            {ic}
+            <img
+              src={`/icons/${iconName}.png`}
+              alt={iconName}
+              className="w-5 h-5"
+              loading="lazy"
+            />
           </div>
         ))}
-        <div
+      </div>
+      <div className="flex items-center gap-2 mb-4">
+        <button
           onClick={() => fileInputRef.current?.click()}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-sm cursor-pointer transition-all duration-150 text-text-muted hover:text-text-primary"
-          style={{
-            background: customImage ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
-            border: customImage
-              ? "2px solid var(--color-gold-bright, #caa968)"
-              : "1px solid rgba(255,255,255,0.1)",
-          }}
+          className="text-xs text-text-muted cursor-pointer transition-all duration-150 hover:text-text-primary bg-bg-deep border border-border-default rounded-md px-2.5 py-1.5"
+          style={customImage ? { borderColor: "var(--color-gold-bright, #caa968)", color: "var(--color-gold-bright, #caa968)" } : {}}
         >
-          {customImage ? "\u2713" : "\u2191"}
-        </div>
+          {customImage ? "Custom uploaded" : "Upload custom"}
+        </button>
         <input
           ref={fileInputRef}
           type="file"
@@ -95,6 +118,11 @@ export function EnemyForm({ sessionId, onAddEnemy }: Props) {
           onChange={handleIconUpload}
           className="hidden"
         />
+        {(selectedIcon || customImage) && (
+          <span className="text-xs text-text-muted truncate">
+            {customImage ? "custom image" : selectedIcon}
+          </span>
+        )}
       </div>
 
       <span className="text-[10px] uppercase tracking-[1px] text-text-muted block mb-2">Color</span>

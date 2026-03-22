@@ -80,8 +80,8 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
             height={(radius - 5) * 2}
             offsetX={radius - 5}
             offsetY={radius - 5}
-            filters={[Konva.Filters.Invert]}
-            ref={(node) => { if (node) node.cache({ pixelRatio: 3 }); }}
+            filters={token.customImage?.startsWith("/uploads/") ? [Konva.Filters.Invert] : undefined}
+            ref={(node) => { if (node && token.customImage?.startsWith("/uploads/")) node.cache({ pixelRatio: 3 }); }}
           />
         </Group>
       ) : (
