@@ -1,7 +1,7 @@
 import { nanoid, customAlphabet } from "nanoid";
 
 const sessionIdGen = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 4);
-import type { Session, Token, GridMode, MapData } from "./types.js";
+import type { Session, Token, HeroToken, EnemyToken, HeroType, GridMode, MapData } from "./types.js";
 import type { Database } from "./db.js";
 
 export class StateManager {
@@ -46,17 +46,43 @@ export class StateManager {
     return this.sessions.get(id);
   }
 
-  addToken(
+  addHero(
     sessionId: string,
-    data: { name: string; color: string; x: number; y: number }
+    data: { heroType: HeroType; x: number; y: number }
   ): Token | undefined {
     const session = this.sessions.get(sessionId);
     if (!session) return undefined;
-    const token: Token = {
+    // Each hero type can only exist once per session
+    if (session.tokens.some((t) => t.kind === "hero" && t.heroType === data.heroType)) {
+      return undefined;
+    }
+    const token: HeroToken = {
       id: nanoid(8),
       sessionId,
+      kind: "hero",
+      heroType: data.heroType,
+      x: data.x,
+      y: data.y,
+      size: 1,
+    };
+    session.tokens.push(token);
+    return token;
+  }
+
+  addEnemy(
+    sessionId: string,
+    data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }
+  ): Token | undefined {
+    const session = this.sessions.get(sessionId);
+    if (!session) return undefined;
+    const token: EnemyToken = {
+      id: nanoid(8),
+      sessionId,
+      kind: "enemy",
       name: data.name,
       color: data.color,
+      icon: data.icon,
+      customImage: data.customImage,
       x: data.x,
       y: data.y,
       size: 1,
