@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
-import type { SessionState, Token as TokenType, GridMode } from "../types.js";
+import type { SessionState, Token as TokenType, GridMode, HeroType } from "../types.js";
 import { TokenComponent } from "./Token.js";
 import { GridOverlay } from "./GridOverlay.js";
 
 interface Props {
   session: SessionState;
+  heroImages: Record<HeroType, HTMLImageElement> | null;
   onMoveToken: (id: string, x: number, y: number) => void;
 }
 
-export function BattleMap({ session, onMoveToken }: Props) {
+export function BattleMap({ session, heroImages, onMoveToken }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
@@ -144,6 +145,7 @@ export function BattleMap({ session, onMoveToken }: Props) {
               key={token.id}
               token={token}
               gridSize={session.gridSize}
+              heroImages={heroImages}
               onDragEnd={handleTokenDragEnd}
             />
           ))}

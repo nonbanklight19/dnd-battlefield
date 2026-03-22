@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSocket } from "./hooks/useSocket.js";
 import { useSession } from "./hooks/useSession.js";
+import { useHeroImages } from "./hooks/useHeroImages.js";
 import { HomePage } from "./components/HomePage.js";
 import { BattleMap } from "./components/BattleMap.js";
 import { TopBar } from "./components/TopBar.js";
@@ -9,13 +10,14 @@ import type { GridMode } from "./types.js";
 
 export function App() {
   const socket = useSocket();
+  const heroImages = useHeroImages();
   const [sessionId, setSessionId] = useState<string | null>(() => {
     const path = window.location.pathname.slice(1).toUpperCase();
     return /^[A-Z0-9]{4}$/.test(path) ? path : null;
   });
   const [sidePanelVisible, setSidePanelVisible] = useState(true);
 
-  const { session, connected, error, saveStatus, addToken, moveToken, removeToken, updateGrid, saveSession } =
+  const { session, connected, error, saveStatus, addHero, addEnemy, moveToken, removeToken, updateGrid, saveSession } =
     useSession(socket, sessionId);
 
   const handleCreate = async () => {
@@ -114,12 +116,14 @@ export function App() {
         onToggleSidePanel={() => setSidePanelVisible((v) => !v)}
       />
       <div className="flex flex-1 overflow-hidden">
-        <BattleMap session={session} onMoveToken={moveToken} />
+        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} />
         <SidePanel
           tokens={session.tokens}
           gridMode={session.gridMode}
           gridSize={session.gridSize}
-          onAddToken={addToken}
+          sessionId={session.id}
+          onAddHero={addHero}
+          onAddEnemy={addEnemy}
           onRemoveToken={removeToken}
           onUploadMap={handleUploadMap}
           onGridModeChange={handleGridModeChange}
