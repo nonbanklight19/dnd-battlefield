@@ -39,15 +39,17 @@ export function TopBar({ sessionId, saveStatus, onSave, onToggleSidePanel, role 
         </div>
       </div>
 
-      <a
-        href={`/${sessionId}/initiative`}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Open Initiative Tracker"
-        className="text-xs text-text-secondary bg-gold-subtle px-3 py-1 rounded-full border border-border-default cursor-pointer transition-all duration-150 hover:bg-gold-dim hover:border-border-hover shrink-0 no-underline"
-      >
-        ⚡ Initiative
-      </a>
+      {role === "dm" && (
+        <a
+          href={`/${sessionId}/initiative`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open Initiative Tracker"
+          className="text-xs text-text-secondary bg-gold-subtle px-3 py-1 rounded-full border border-border-default cursor-pointer transition-all duration-150 hover:bg-gold-dim hover:border-border-hover shrink-0 no-underline"
+        >
+          ⚡ Initiative
+        </a>
+      )}
 
       <div className="flex-1" />
 
