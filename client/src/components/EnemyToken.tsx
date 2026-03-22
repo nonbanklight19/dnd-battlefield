@@ -81,7 +81,7 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
             offsetX={radius - 5}
             offsetY={radius - 5}
             filters={[Konva.Filters.Invert]}
-            ref={(node) => { if (node) node.cache(); }}
+            ref={(node) => { if (node) node.cache({ pixelRatio: 3 }); }}
           />
         </Group>
       ) : (
