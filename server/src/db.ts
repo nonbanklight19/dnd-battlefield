@@ -25,7 +25,6 @@ export class Database {
         width INTEGER NOT NULL,
         height INTEGER NOT NULL
       );
-      DROP TABLE IF EXISTS tokens;
       CREATE TABLE IF NOT EXISTS tokens (
         id TEXT PRIMARY KEY,
         sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
