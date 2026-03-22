@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130">
+  <defs>
+    <!-- Base gradient -->
+    <linearGradient id="d-base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a5a5a"/>
+      <stop offset="100%" stop-color="#2a2a2a"/>
+    </linearGradient>
+    <!-- Armor gradient -->
+    <linearGradient id="d-armor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <!-- Head gradient -->
+    <radialGradient id="d-skin" cx="0.4" cy="0.35">
+      <stop offset="0%" stop-color="#e8c9a0"/>
+      <stop offset="100%" stop-color="#c9a87a"/>
+    </radialGradient>
+    <!-- Beard gradient -->
+    <linearGradient id="d-beard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#92400e"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+    <!-- Axe head gradient -->
+    <linearGradient id="d-axe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#bbb"/>
+      <stop offset="100%" stop-color="#777"/>
+    </linearGradient>
+    <!-- Helmet gradient -->
+    <linearGradient id="d-helmet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4a017"/>
+      <stop offset="100%" stop-color="#8a6914"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground shadow -->
+  <ellipse cx="50" cy="122" rx="32" ry="6" fill="rgba(0,0,0,0.25)"/>
+
+  <!-- Base -->
+  <ellipse cx="50" cy="118" rx="28" ry="8" fill="url(#d-base)" stroke="#222" stroke-width="1"/>
+
+  <!-- Legs (short, stocky) -->
+  <rect x="36" y="100" width="10" height="18" rx="3" fill="url(#d-armor)"/>
+  <rect x="54" y="100" width="10" height="18" rx="3" fill="url(#d-armor)"/>
+
+  <!-- Boots -->
+  <rect x="34" y="112" width="14" height="6" rx="2" fill="#654321"/>
+  <rect x="52" y="112" width="14" height="6" rx="2" fill="#654321"/>
+
+  <!-- Body / torso (wide and stocky) -->
+  <rect x="28" y="68" width="44" height="35" rx="6" fill="url(#d-armor)"/>
+
+  <!-- Belt -->
+  <rect x="27" y="94" width="46" height="5" rx="1.5" fill="#654321"/>
+  <rect x="47" y="93" width="6" height="7" rx="1.5" fill="#d4a017"/>
+
+  <!-- Shoulder pads -->
+  <ellipse cx="26" cy="72" rx="9" ry="7" fill="url(#d-armor)" stroke="#b45309" stroke-width="0.5"/>
+  <ellipse cx="74" cy="72" rx="9" ry="7" fill="url(#d-armor)" stroke="#b45309" stroke-width="0.5"/>
+
+  <!-- Arms (thick) -->
+  <rect x="18" y="72" width="10" height="24" rx="4" fill="url(#d-armor)"/>
+  <rect x="72" y="72" width="10" height="24" rx="4" fill="url(#d-armor)"/>
+
+  <!-- Axe handle -->
+  <line x1="80" y1="42" x2="78" y2="112" stroke="#654321" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="80" y1="42" x2="78" y2="112" stroke="#7a5a2a" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Axe head (double-sided) -->
+  <path d="M80,42 Q95,48 92,58 L80,54 L68,58 Q65,48 80,42 Z" fill="url(#d-axe)" stroke="#666" stroke-width="0.5"/>
+
+  <!-- Neck -->
+  <rect x="44" y="62" width="12" height="8" rx="3" fill="url(#d-skin)"/>
+
+  <!-- Head (larger relative to body) -->
+  <circle cx="50" cy="53" r="14" fill="url(#d-skin)"/>
+
+  <!-- Helmet -->
+  <path d="M34,53 Q34,36 50,33 Q66,36 66,53" fill="url(#d-helmet)" stroke="#8a6914" stroke-width="0.5"/>
+  <!-- Helmet nose guard -->
+  <rect x="48" y="40" width="4" height="12" rx="1" fill="#d4a017" opacity="0.7"/>
+
+  <!-- Eyes -->
+  <circle cx="44" cy="50" r="1.5" fill="#333"/>
+  <circle cx="56" cy="50" r="1.5" fill="#333"/>
+  <!-- Bushy eyebrows -->
+  <path d="M40,47 Q44,45 48,47" stroke="#654321" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M52,47 Q56,45 60,47" stroke="#654321" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Nose -->
+  <ellipse cx="50" cy="54" rx="2.5" ry="2" fill="#d4a87a"/>
+
+  <!-- Beard -->
+  <path d="M36,56 Q36,60 38,65 Q42,80 50,82 Q58,80 62,65 Q64,60 64,56" fill="url(#d-beard)"/>
+  <!-- Beard texture -->
+  <path d="M42,62 Q50,66 58,62" stroke="#78350f" stroke-width="0.5" fill="none" opacity="0.5"/>
+  <path d="M44,68 Q50,72 56,68" stroke="#78350f" stroke-width="0.5" fill="none" opacity="0.5"/>
+  <path d="M46,74 Q50,77 54,74" stroke="#78350f" stroke-width="0.5" fill="none" opacity="0.5"/>
+
+  <!-- Mustache -->
+  <path d="M44,56 Q47,59 50,56 Q53,59 56,56" fill="#92400e" stroke="#78350f" stroke-width="0.5"/>
+</svg>

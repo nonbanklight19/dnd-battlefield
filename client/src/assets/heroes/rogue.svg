@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130">
+  <defs>
+    <!-- Base gradient -->
+    <linearGradient id="r-base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a5a5a"/>
+      <stop offset="100%" stop-color="#2a2a2a"/>
+    </linearGradient>
+    <!-- Body gradient -->
+    <linearGradient id="r-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7c6dec"/>
+      <stop offset="100%" stop-color="#4c3d9c"/>
+    </linearGradient>
+    <!-- Cloak gradient (darker) -->
+    <linearGradient id="r-cloak" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5b4dac"/>
+      <stop offset="100%" stop-color="#2e2060"/>
+    </linearGradient>
+    <!-- Head gradient -->
+    <radialGradient id="r-skin" cx="0.4" cy="0.35">
+      <stop offset="0%" stop-color="#e8c9a0"/>
+      <stop offset="100%" stop-color="#c9a87a"/>
+    </radialGradient>
+    <!-- Dagger gradient -->
+    <linearGradient id="r-dagger" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ddd"/>
+      <stop offset="100%" stop-color="#888"/>
+    </linearGradient>
+    <!-- Hood gradient -->
+    <linearGradient id="r-hood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b5dbc"/>
+      <stop offset="100%" stop-color="#3c2d7c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground shadow -->
+  <ellipse cx="50" cy="122" rx="32" ry="6" fill="rgba(0,0,0,0.25)"/>
+
+  <!-- Base -->
+  <ellipse cx="50" cy="118" rx="28" ry="8" fill="url(#r-base)" stroke="#222" stroke-width="1"/>
+
+  <!-- Cloak/cape behind body -->
+  <polygon points="34,48 26,115 74,115 66,48" fill="url(#r-cloak)" opacity="0.8"/>
+
+  <!-- Legs (slim) -->
+  <rect x="40" y="90" width="7" height="28" rx="2" fill="url(#r-body)"/>
+  <rect x="53" y="90" width="7" height="28" rx="2" fill="url(#r-body)"/>
+
+  <!-- Boots -->
+  <rect x="39" y="110" width="9" height="6" rx="2" fill="#333"/>
+  <rect x="52" y="110" width="9" height="6" rx="2" fill="#333"/>
+
+  <!-- Body / torso (slim) -->
+  <rect x="36" y="55" width="28" height="38" rx="4" fill="url(#r-body)"/>
+
+  <!-- Belt -->
+  <rect x="35" y="85" width="30" height="4" rx="1" fill="#3c2d7c"/>
+  <rect x="48" y="84" width="4" height="6" rx="1" fill="#c0a030"/>
+
+  <!-- Arms -->
+  <rect x="28" y="56" width="8" height="28" rx="3" fill="url(#r-body)"/>
+  <rect x="64" y="56" width="8" height="28" rx="3" fill="url(#r-body)"/>
+
+  <!-- Left dagger (angled outward) -->
+  <g transform="translate(22,68) rotate(-30)">
+    <rect x="0" y="-22" width="3" height="20" rx="0.5" fill="url(#r-dagger)"/>
+    <rect x="-1.5" y="-2" width="6" height="4" rx="1" fill="#555"/>
+    <polygon points="1.5,-22 0,-26 3,-26" fill="#ccc"/>
+  </g>
+
+  <!-- Right dagger (angled outward) -->
+  <g transform="translate(75,68) rotate(30)">
+    <rect x="0" y="-22" width="3" height="20" rx="0.5" fill="url(#r-dagger)"/>
+    <rect x="-1.5" y="-2" width="6" height="4" rx="1" fill="#555"/>
+    <polygon points="1.5,-22 0,-26 3,-26" fill="#ccc"/>
+  </g>
+
+  <!-- Neck -->
+  <rect x="46" y="48" width="8" height="7" rx="2" fill="url(#r-skin)"/>
+
+  <!-- Head -->
+  <circle cx="50" cy="40" r="11" fill="url(#r-skin)"/>
+
+  <!-- Hood -->
+  <path d="M35,44 Q35,24 50,22 Q65,24 65,44" fill="url(#r-hood)" stroke="#3c2d7c" stroke-width="0.5"/>
+  <!-- Hood shadow over face -->
+  <path d="M38,42 Q50,36 62,42" fill="#3c2d7c" opacity="0.3"/>
+
+  <!-- Eyes (glinting from shadow) -->
+  <circle cx="45" cy="40" r="1.5" fill="#222"/>
+  <circle cx="55" cy="40" r="1.5" fill="#222"/>
+  <circle cx="44.5" cy="39.5" r="0.5" fill="#fff" opacity="0.6"/>
+  <circle cx="54.5" cy="39.5" r="0.5" fill="#fff" opacity="0.6"/>
+
+  <!-- Mouth/mask line -->
+  <line x1="44" y1="45" x2="56" y2="45" stroke="#4c3d9c" stroke-width="1.5" opacity="0.5"/>
+</svg>

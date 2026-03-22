@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130">
+  <defs>
+    <!-- Base gradient -->
+    <linearGradient id="w-base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a5a5a"/>
+      <stop offset="100%" stop-color="#2a2a2a"/>
+    </linearGradient>
+    <!-- Armor gradient -->
+    <linearGradient id="w-armor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e05252"/>
+      <stop offset="100%" stop-color="#8a2020"/>
+    </linearGradient>
+    <!-- Head gradient -->
+    <radialGradient id="w-skin" cx="0.4" cy="0.35">
+      <stop offset="0%" stop-color="#e8c9a0"/>
+      <stop offset="100%" stop-color="#c9a87a"/>
+    </radialGradient>
+    <!-- Sword gradient -->
+    <linearGradient id="w-sword" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0e0e0"/>
+      <stop offset="100%" stop-color="#888888"/>
+    </linearGradient>
+    <!-- Shield gradient -->
+    <linearGradient id="w-shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c04040"/>
+      <stop offset="100%" stop-color="#6a1818"/>
+    </linearGradient>
+    <!-- Helmet gradient -->
+    <linearGradient id="w-helmet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#999"/>
+      <stop offset="100%" stop-color="#555"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground shadow -->
+  <ellipse cx="50" cy="122" rx="32" ry="6" fill="rgba(0,0,0,0.25)"/>
+
+  <!-- Base -->
+  <ellipse cx="50" cy="118" rx="28" ry="8" fill="url(#w-base)" stroke="#222" stroke-width="1"/>
+
+  <!-- Legs -->
+  <rect x="38" y="92" width="8" height="26" rx="2" fill="url(#w-armor)"/>
+  <rect x="54" y="92" width="8" height="26" rx="2" fill="url(#w-armor)"/>
+
+  <!-- Body / torso -->
+  <rect x="32" y="55" width="36" height="40" rx="5" fill="url(#w-armor)"/>
+
+  <!-- Shoulder pads -->
+  <ellipse cx="30" cy="58" rx="8" ry="6" fill="url(#w-armor)" stroke="#8a2020" stroke-width="0.5"/>
+  <ellipse cx="70" cy="58" rx="8" ry="6" fill="url(#w-armor)" stroke="#8a2020" stroke-width="0.5"/>
+
+  <!-- Shield (left side) -->
+  <ellipse cx="22" cy="75" rx="12" ry="16" fill="url(#w-shield)" stroke="#4a1010" stroke-width="1"/>
+  <line x1="22" y1="62" x2="22" y2="88" stroke="#8a2020" stroke-width="1"/>
+  <line x1="12" y1="75" x2="32" y2="75" stroke="#8a2020" stroke-width="1"/>
+
+  <!-- Sword arm -->
+  <rect x="72" y="55" width="6" height="30" rx="2" fill="url(#w-armor)"/>
+
+  <!-- Sword -->
+  <rect x="74" y="18" width="3" height="45" rx="1" fill="url(#w-sword)"/>
+  <rect x="70" y="58" width="11" height="4" rx="1" fill="#a08030"/>
+  <polygon points="75.5,18 73,12 78,12" fill="#ccc"/>
+
+  <!-- Neck -->
+  <rect x="45" y="48" width="10" height="8" rx="2" fill="url(#w-skin)"/>
+
+  <!-- Head -->
+  <circle cx="50" cy="40" r="12" fill="url(#w-skin)"/>
+
+  <!-- Helmet -->
+  <path d="M38,40 Q38,26 50,24 Q62,26 62,40" fill="url(#w-helmet)" stroke="#444" stroke-width="0.5"/>
+  <!-- Visor slit -->
+  <rect x="42" y="38" width="16" height="3" rx="1" fill="#333" opacity="0.7"/>
+
+  <!-- Eyes (visible through visor) -->
+  <circle cx="45" cy="39" r="1.2" fill="#222"/>
+  <circle cx="55" cy="39" r="1.2" fill="#222"/>
+</svg>
