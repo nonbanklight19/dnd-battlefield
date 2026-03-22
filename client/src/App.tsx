@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useSocket } from "./hooks/useSocket.js";
 import { useSession } from "./hooks/useSession.js";
 import { useHeroImages } from "./hooks/useHeroImages.js";
@@ -15,7 +15,9 @@ export function App() {
     const path = window.location.pathname.slice(1).toUpperCase();
     return /^[A-Z0-9]{4}$/.test(path) ? path : null;
   });
-  const [sidePanelVisible, setSidePanelVisible] = useState(true);
+  const [sidePanelVisible, setSidePanelVisible] = useState(false);
+  const getViewCenterRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
+  const getSpawnPosRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
 
   const { session, connected, error, saveStatus, addHero, addEnemy, moveToken, removeToken, updateGrid, saveSession } =
     useSession(socket, sessionId);
@@ -116,7 +118,7 @@ export function App() {
         onToggleSidePanel={() => setSidePanelVisible((v) => !v)}
       />
       <div className="flex flex-1 overflow-hidden">
-        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} />
+        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} getViewCenterRef={getViewCenterRef} getSpawnPosRef={getSpawnPosRef} />
         <SidePanel
           tokens={session.tokens}
           gridMode={session.gridMode}
@@ -129,6 +131,8 @@ export function App() {
           onGridModeChange={handleGridModeChange}
           onGridSizeChange={handleGridSizeChange}
           visible={sidePanelVisible}
+          onClose={() => setSidePanelVisible(false)}
+          getViewCenter={() => getSpawnPosRef.current()}
         />
       </div>
     </>

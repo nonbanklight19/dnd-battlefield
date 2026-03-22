@@ -18,9 +18,10 @@ interface Props {
   tokens: Token[];
   onAddHero: (data: { heroType: string; x: number; y: number }) => void;
   onRemoveToken: (id: string) => void;
+  getViewCenter: () => { x: number; y: number };
 }
 
-export function HeroPicker({ tokens, onAddHero, onRemoveToken }: Props) {
+export function HeroPicker({ tokens, onAddHero, onRemoveToken, getViewCenter }: Props) {
   const placedHeroes = tokens.filter((t) => t.kind === "hero");
 
   const isPlaced = (type: HeroType) =>
@@ -34,7 +35,8 @@ export function HeroPicker({ tokens, onAddHero, onRemoveToken }: Props) {
       const id = getPlacedTokenId(hero.type);
       if (id) onRemoveToken(id);
     } else {
-      onAddHero({ heroType: hero.type, x: 100, y: 100 });
+      const { x, y } = getViewCenter();
+      onAddHero({ heroType: hero.type, x, y });
     }
   };
 

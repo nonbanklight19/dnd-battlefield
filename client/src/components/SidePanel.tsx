@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Token, GridMode } from "../types.js";
 import { HeroPicker } from "./HeroPicker.js";
 import { EnemyForm } from "./EnemyForm.js";
@@ -15,9 +15,22 @@ interface Props {
   onGridModeChange: (mode: GridMode) => void;
   onGridSizeChange: (size: number) => void;
   visible: boolean;
+  onClose: () => void;
+  getViewCenter: () => { x: number; y: number };
 }
 
 const GRID_MODES: GridMode[] = ["none", "square", "hex"];
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 function CollapsibleSection({
   title,
@@ -60,19 +73,40 @@ function CollapsibleSection({
 export function SidePanel({
   tokens, gridMode, gridSize, sessionId,
   onAddHero, onAddEnemy, onRemoveToken, onUploadMap,
-  onGridModeChange, onGridSizeChange, visible,
+  onGridModeChange, onGridSizeChange, visible, onClose, getViewCenter,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  if (!visible) return null;
+  const isMobile = useIsMobile();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) onUploadMap(file);
   };
 
+  if (!isMobile && !visible) return null;
+
   return (
-    <div className="w-[20vw] min-w-[240px] max-w-[360px] bg-bg-surface border-l border-border-default overflow-y-auto overflow-x-hidden flex-shrink-0">
+    <>
+      {/* Mobile overlay backdrop */}
+      {visible && isMobile && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onClose} />
+      )}
+      <div
+        className={[
+          "bg-bg-surface border-border-default overflow-y-auto overflow-x-hidden shrink-0",
+          // Mobile: fixed bottom drawer
+          "fixed bottom-0 left-0 right-0 z-50 max-h-[70vh] border-t rounded-t-2xl transition-transform duration-300 ease-in-out",
+          // Desktop: static sidebar
+          "md:static md:w-[20vw] md:min-w-60 md:max-w-90 md:border-l md:border-t-0 md:rounded-none md:max-h-none md:z-auto",
+          visible ? "translate-y-0" : "translate-y-full md:translate-y-0 md:hidden",
+        ].join(" ")}
+      >
+      {/* Mobile drag handle */}
+      {isMobile && (
+        <div className="flex justify-center pt-3 pb-1 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-border-hover" />
+        </div>
+      )}
       {/* Grid Setup — collapsed by default */}
       <CollapsibleSection title="Grid Setup" defaultOpen={false}>
         <div className="flex gap-1 bg-bg-deep rounded-lg p-1.5 border border-border-default mb-4">
@@ -101,7 +135,7 @@ export function SidePanel({
               onChange={(e) => onGridSizeChange(Number(e.target.value))}
               className="flex-1"
             />
-            <span className="text-xs text-text-muted min-w-[32px] text-right">
+            <span className="text-xs text-text-muted min-w-8 text-right">
               {gridSize}px
             </span>
           </div>
@@ -128,12 +162,12 @@ export function SidePanel({
 
       {/* Place Hero */}
       <CollapsibleSection title="Place Hero">
-        <HeroPicker tokens={tokens} onAddHero={onAddHero} onRemoveToken={onRemoveToken} />
+        <HeroPicker tokens={tokens} onAddHero={onAddHero} onRemoveToken={onRemoveToken} getViewCenter={getViewCenter} />
       </CollapsibleSection>
 
       {/* Add Enemy */}
       <CollapsibleSection title="Add Enemy">
-        <EnemyForm sessionId={sessionId} onAddEnemy={onAddEnemy} />
+        <EnemyForm sessionId={sessionId} onAddEnemy={onAddEnemy} getViewCenter={getViewCenter} />
       </CollapsibleSection>
 
       {/* Tokens list */}
@@ -161,5 +195,6 @@ export function SidePanel({
         </div>
       </CollapsibleSection>
     </div>
+    </>
   );
 }

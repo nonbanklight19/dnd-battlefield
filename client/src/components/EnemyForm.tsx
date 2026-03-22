@@ -9,9 +9,10 @@ const PRESET_COLORS = [
 interface Props {
   sessionId: string;
   onAddEnemy: (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => void;
+  getViewCenter: () => { x: number; y: number };
 }
 
-export function EnemyForm({ sessionId, onAddEnemy }: Props) {
+export function EnemyForm({ sessionId, onAddEnemy, getViewCenter }: Props) {
   const [name, setName] = useState("");
   const [iconSearch, setIconSearch] = useState("");
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
@@ -28,13 +29,14 @@ export function EnemyForm({ sessionId, onAddEnemy }: Props) {
   const handleAdd = () => {
     if (!name.trim()) return;
     const iconUrl = customImage ?? (selectedIcon ? `/icons/${selectedIcon}.png` : `/icons/${iconNames[0]}.png`);
+    const { x, y } = getViewCenter();
     onAddEnemy({
       name: name.trim(),
       color,
       icon: selectedIcon ?? iconNames[0],
       customImage: iconUrl,
-      x: 100,
-      y: 100,
+      x,
+      y,
     });
     setName("");
     setCustomImage(null);

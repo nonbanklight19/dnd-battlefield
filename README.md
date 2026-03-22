@@ -59,6 +59,7 @@ fly.toml                 # Fly.io deployment config
 npm install
 cd client && npm install
 cd ../server && npm install
+cd ..
 
 # Run both client and server in dev mode
 npm run dev
