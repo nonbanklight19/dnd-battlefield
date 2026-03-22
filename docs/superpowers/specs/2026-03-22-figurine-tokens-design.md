@@ -1,0 +1,157 @@
+# Figurine-Style Tokens - Design Spec
+
+## Overview
+
+Replace the current flat colored-circle tokens with two distinct token styles:
+- **Hero figurines:** 5 hardcoded player characters rendered as SVG art resembling painted D&D miniatures on round bases. No labels — visually distinctive by design.
+- **Enemy tokens:** Icon-based tokens with a colored ring border, emoji or custom uploaded image, and a name plate underneath.
+
+## Data Model
+
+### Token Types (Discriminated Union)
+
+```ts
+type HeroType = "warrior" | "wizard" | "rogue" | "dwarf" | "triton";
+
+interface HeroToken {
+  id: string;
+  kind: "hero";
+  heroType: HeroType;
+  x: number;
+  y: number;
+  size: number;
+}
+
+interface EnemyToken {
+  id: string;
+  kind: "enemy";
+  name: string;
+  color: string;
+  icon: string;         // emoji like "👹"
+  customImage?: string;  // URL to uploaded image (overrides icon)
+  x: number;
+  y: number;
+  size: number;
+}
+
+type Token = HeroToken | EnemyToken;
+```
+
+### SQLite Schema Changes
+
+Add columns to the token table:
+- `kind` TEXT NOT NULL DEFAULT 'enemy' — "hero" or "enemy"
+- `heroType` TEXT — nullable, only for hero tokens
+- `icon` TEXT — nullable, emoji for enemy tokens
+- `customImage` TEXT — nullable, uploaded image URL for enemy tokens
+
+Existing `name` and `color` columns become nullable (unused by hero tokens).
+
+Migration strategy: drop and recreate the table (personal project, no production data to preserve).
+
+## SVG Assets
+
+5 SVG files in `client/src/assets/heroes/`:
+- `warrior.svg` — red armor, sword and shield
+- `wizard.svg` — blue robes, pointed hat, staff with glowing orb
+- `rogue.svg` — purple cloak with hood, dual daggers
+- `dwarf.svg` — amber/gold armor, shorter stature, battle axe, beard
+- `triton.svg` — cyan/teal armor, trident, aquatic features
+
+Each SVG includes:
+- The figurine silhouette with shading/gradients (the "painted mini" look)
+- A round base with 3D perspective (elliptical, darker gradient)
+- Ground shadow beneath the base
+
+SVGs are imported statically via Vite, cached as `HTMLImageElement` for use with `Konva.Image`.
+
+## Canvas Rendering
+
+### Hero Tokens
+- Rendered as `Konva.Image` using the preloaded SVG
+- Scaled proportionally to fit the grid size
+- No text label — the figurine art is the identifier
+- Draggable, same drag behavior as current tokens
+
+### Enemy Tokens
+- **Base:** `Konva.Circle` with fill, plus a colored ring border (conic gradient effect via stroke or outer circle)
+- **Icon (emoji):** `Konva.Text` centered in the circle
+- **Icon (custom image):** `Konva.Image` clipped to circle via `clipFunc`
+- **Name plate:** `Konva.Label` or `Konva.Group` with `Konva.Rect` + `Konva.Text` positioned below the circle
+- **Shadow:** `shadowColor`, `shadowBlur`, `shadowOpacity` on the group
+- Draggable, same drag behavior as current tokens
+
+## Side Panel
+
+### "Place Hero" Section (replaces "Add Token")
+- Grid of 5 hero thumbnails (small renders of each SVG)
+- Click to place that hero at a default position on the map
+- If a hero is already placed, its thumbnail is dimmed/disabled (each hero can only exist once on the map)
+- Click a placed hero's thumbnail again to remove it from the map
+
+### "Add Enemy" Section (new)
+- **Name input** — required, text field
+- **Icon picker** — grid of ~12 preset emojis: 👹💀🐉🕷️🐺🧟👻🦇🐍🧌🔥⚡ plus an upload button (last item in grid)
+- **Custom image upload** — triggered by the upload button, accepts image files, uploads via REST endpoint
+- **Color picker** — existing preset color swatches, controls the ring border color
+- **"Add Enemy" button** — creates the token
+
+### "Tokens" List Section
+- Shows all tokens currently on the map
+- Hero tokens show the hero type name + a small SVG thumbnail
+- Enemy tokens show the icon + name (existing behavior adapted)
+- Remove button on hover (enemies only — heroes are removed via the hero picker)
+
+## Socket Events
+
+### New Events
+
+| Client Emits | Server Broadcasts | Payload |
+|---|---|---|
+| `token:add-hero` | `token:added` | `{ heroType: HeroType, x: number, y: number }` |
+| `token:add-enemy` | `token:added` | `{ name: string, color: string, icon: string, customImage?: string, x: number, y: number }` |
+
+### Unchanged Events
+
+| Client Emits | Server Broadcasts | Description |
+|---|---|---|
+| `token:move` | `token:moved` | Move a token |
+| `token:remove` | `token:removed` | Remove a token |
+
+The server assigns `id`, `kind`, and `size` (default 1) when creating tokens.
+
+## REST Endpoints
+
+### New Endpoint
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/sessions/:id/enemy-icon` | Upload a custom enemy icon image. Returns `{ imageUrl: string }` |
+
+Uses multer for file handling, same as map upload. Images stored alongside map images in `/data/uploads/`.
+
+## Component Changes
+
+### New Components
+- `HeroToken.tsx` — renders a hero figurine on the canvas via `Konva.Image`
+- `EnemyToken.tsx` — renders an enemy icon token on the canvas (circle + icon + name plate)
+- `HeroPicker.tsx` — the "Place Hero" section in the side panel
+- `EnemyForm.tsx` — the "Add Enemy" section in the side panel
+
+### Modified Components
+- `Token.tsx` — becomes a wrapper that delegates to `HeroToken` or `EnemyToken` based on `kind`
+- `SidePanel.tsx` — replace "Add Token" section with `HeroPicker` and `EnemyForm`
+- `BattleMap.tsx` — update token rendering to use the new `Token` wrapper
+
+### Removed
+- Old `onAddToken` prop signature (replaced by `onAddHero` and `onAddEnemy`)
+
+## Image Caching
+
+Hero SVGs are preloaded once at app startup:
+```ts
+const heroImages: Record<HeroType, HTMLImageElement> = {};
+// Load all 5 SVGs, resolve when all are ready
+```
+
+Enemy custom images are loaded on demand when a token with `customImage` appears, cached by URL to avoid reloading on re-renders.
