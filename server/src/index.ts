@@ -13,7 +13,6 @@ import { createAdminRoutes } from "./admin.js";
 const PORT = Number(process.env.PORT) || 3001;
 const DATA_DIR = process.env.DATA_DIR || "./data";
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
-const ICONS_DIR = path.resolve(import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname), "../../assets/icons");
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const MAX_STORAGE_MB = Number(process.env.MAX_STORAGE_MB) || 1000;
 const MAX_SESSIONS = Number(process.env.MAX_SESSIONS) || 50;
@@ -35,7 +34,7 @@ app.use(express.json());
 app.use(createRoutes(state, UPLOAD_DIR, io, {
   maxStorageMb: MAX_STORAGE_MB,
   maxSessions: MAX_SESSIONS,
-}, ICONS_DIR));
+}));
 setupSocketHandlers(io, state);
 
 if (ADMIN_PASSWORD) {

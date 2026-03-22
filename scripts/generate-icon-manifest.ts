@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
-const iconsDir = path.resolve(scriptDir, "../assets/icons");
+const iconsDir = path.resolve(scriptDir, "../client/public/icons");
 const outFile = path.resolve(scriptDir, "../client/src/data/icon-names.json");
 
 const names = fs

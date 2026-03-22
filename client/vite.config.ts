@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:3001",
       "/uploads": "http://localhost:3001",
-      "/icons": "http://localhost:3001",
+
       "/socket.io": {
         target: "http://localhost:3001",
         ws: true,

@@ -11,7 +11,7 @@ export interface GuardConfig {
   maxSessions: number;
 }
 
-export function createRoutes(state: StateManager, uploadDir: string, io?: Server, guardConfig?: GuardConfig, iconsDir?: string): Router {
+export function createRoutes(state: StateManager, uploadDir: string, io?: Server, guardConfig?: GuardConfig): Router {
   const router = Router();
 
   const storage = multer.diskStorage({
@@ -81,10 +81,6 @@ export function createRoutes(state: StateManager, uploadDir: string, io?: Server
   );
 
   router.use("/uploads", serveStatic(uploadDir));
-
-  if (iconsDir) {
-    router.use("/icons", serveStatic(iconsDir, { maxAge: "30d", immutable: true }));
-  }
 
   return router;
 }
