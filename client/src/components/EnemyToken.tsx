@@ -63,10 +63,12 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
         strokeWidth={3}
         fill="#1a1a1a"
       />
-      <Circle
-        radius={radius - 4}
-        fill="#111"
-      />
+      {!customImg && (
+        <Circle
+          radius={radius - 4}
+          fill="#111"
+        />
+      )}
       {customImg ? (
         <Group
           clipFunc={(ctx) => {
