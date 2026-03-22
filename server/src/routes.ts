@@ -67,6 +67,19 @@ export function createRoutes(state: StateManager, uploadDir: string, io?: Server
     }
   );
 
+  router.post(
+    "/api/sessions/:id/enemy-icon",
+    ...(guardConfig ? [storageGuard(uploadDir, guardConfig.maxStorageMb)] : []),
+    upload.single("icon"),
+    (req, res) => {
+      const session = state.getSession(req.params.id);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+      const imageUrl = `/uploads/${req.file.filename}`;
+      res.json({ imageUrl });
+    }
+  );
+
   router.use("/uploads", serveStatic(uploadDir));
 
   return router;
