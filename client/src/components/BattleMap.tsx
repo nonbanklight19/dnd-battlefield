@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
-import type { SessionState, Token as TokenType, GridMode, HeroType } from "../types.js";
+import type { SessionState, HeroType } from "../types.js";
 import { TokenComponent } from "./Token.js";
 import { GridOverlay } from "./GridOverlay.js";
 
@@ -8,14 +8,124 @@ interface Props {
   session: SessionState;
   heroImages: Record<HeroType, HTMLImageElement> | null;
   onMoveToken: (id: string, x: number, y: number) => void;
+  getViewCenterRef?: React.MutableRefObject<() => { x: number; y: number }>;
+  getSpawnPosRef?: React.MutableRefObject<() => { x: number; y: number }>;
 }
 
-export function BattleMap({ session, heroImages, onMoveToken }: Props) {
+export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
+
+  // Keep refs so getViewCenter always reads latest values
+  const stagePosRef = useRef(stagePos);
+  const scaleRef = useRef(scale);
+  const dimensionsRef = useRef(dimensions);
+  const sessionRef = useRef(session);
+  stagePosRef.current = stagePos;
+  scaleRef.current = scale;
+  dimensionsRef.current = dimensions;
+  sessionRef.current = session;
+
+  useEffect(() => {
+    if (getViewCenterRef) {
+      getViewCenterRef.current = () => {
+        const { width, height } = dimensionsRef.current;
+        const { x, y } = stagePosRef.current;
+        const s = scaleRef.current;
+        return {
+          x: (width / 2 - x) / s,
+          y: (height / 2 - y) / s,
+        };
+      };
+    }
+  }, [getViewCenterRef]);
+
+  useEffect(() => {
+    if (!getSpawnPosRef) return;
+    getSpawnPosRef.current = () => {
+      const { width, height } = dimensionsRef.current;
+      const { x, y } = stagePosRef.current;
+      const s = scaleRef.current;
+      const cx = (width / 2 - x) / s;
+      const cy = (height / 2 - y) / s;
+
+      const { gridMode, gridSize, tokens } = sessionRef.current;
+
+      // No grid — just return center
+      if (gridMode === "none") return { x: cx, y: cy };
+
+      // Collect occupied cell centers
+      const occupied = new Set(tokens.map((t) => `${Math.round(t.x)},${Math.round(t.y)}`));
+
+      // Generate candidate grid positions by spiralling outward from center
+      const candidates: { x: number; y: number }[] = [];
+
+      if (gridMode === "square") {
+        const cellX = Math.floor(cx / gridSize) * gridSize + gridSize / 2;
+        const cellY = Math.floor(cy / gridSize) * gridSize + gridSize / 2;
+        // Spiral through square cells
+        for (let radius = 0; radius <= 20; radius++) {
+          if (radius === 0) {
+            candidates.push({ x: cellX, y: cellY });
+          } else {
+            for (let dx = -radius; dx <= radius; dx++) {
+              for (let dy = -radius; dy <= radius; dy++) {
+                if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
+                  candidates.push({ x: cellX + dx * gridSize, y: cellY + dy * gridSize });
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Hex grid — spiral through axial coordinates
+        const hexW = gridSize * Math.sqrt(3);
+        const hexH = gridSize * 1.5;
+        // Convert center to nearest hex axial coords
+        const q0 = (Math.sqrt(3) / 3 * cx - cy / 3) / gridSize;
+        const r0 = (2 / 3 * cy) / gridSize;
+        const s0 = -q0 - r0;
+        let rq = Math.round(q0), rr = Math.round(r0), rs = Math.round(s0);
+        if (Math.abs(rq - q0) > Math.abs(rr - r0) && Math.abs(rq - q0) > Math.abs(rs - s0)) rq = -rr - rs;
+        else if (Math.abs(rr - r0) > Math.abs(rs - s0)) rr = -rq - rs;
+        else rs = -rq - rr;
+
+        const axialToPixel = (aq: number, ar: number) => {
+          const col = aq + (ar - (ar & 1)) / 2;
+          const row = ar;
+          const offsetX = row % 2 === 0 ? 0 : hexW / 2;
+          return { x: col * hexW + offsetX, y: row * hexH };
+        };
+
+        // BFS-style ring spiral in axial coords
+        const dirs = [[1,-1,0],[1,0,-1],[0,1,-1],[-1,1,0],[-1,0,1],[0,-1,1]];
+        candidates.push(axialToPixel(rq, rr));
+        for (let radius = 1; radius <= 20; radius++) {
+          let hq = rq + dirs[4][0] * radius;
+          let hr = rr + dirs[4][1] * radius;
+          for (let side = 0; side < 6; side++) {
+            for (let step = 0; step < radius; step++) {
+              candidates.push(axialToPixel(hq, hr));
+              hq += dirs[side][0];
+              hr += dirs[side][1];
+            }
+          }
+        }
+      }
+
+      // Return first candidate not occupied
+      for (const c of candidates) {
+        const key = `${Math.round(c.x)},${Math.round(c.y)}`;
+        if (!occupied.has(key)) return c;
+      }
+
+      return { x: cx, y: cy };
+    };
+  }, [getSpawnPosRef]);
+
 
   useEffect(() => {
     const updateSize = () => {
