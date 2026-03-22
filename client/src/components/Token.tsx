@@ -7,9 +7,10 @@ interface Props {
   gridSize: number;
   heroImages: Record<HeroType, HTMLImageElement> | null;
   onDragEnd: (id: string, x: number, y: number) => void;
+  isActiveTurn?: boolean;
 }
 
-export function TokenComponent({ token, gridSize, heroImages, onDragEnd }: Props) {
+export function TokenComponent({ token, gridSize, heroImages, onDragEnd, isActiveTurn }: Props) {
   if (token.kind === "hero") {
     if (!heroImages) return null;
     return (
@@ -18,6 +19,7 @@ export function TokenComponent({ token, gridSize, heroImages, onDragEnd }: Props
         gridSize={gridSize}
         heroImages={heroImages}
         onDragEnd={onDragEnd}
+        isActiveTurn={isActiveTurn}
       />
     );
   }
@@ -26,6 +28,7 @@ export function TokenComponent({ token, gridSize, heroImages, onDragEnd }: Props
       token={token}
       gridSize={gridSize}
       onDragEnd={onDragEnd}
+      isActiveTurn={isActiveTurn}
     />
   );
 }

@@ -10,9 +10,10 @@ interface Props {
   onMoveToken: (id: string, x: number, y: number) => void;
   getViewCenterRef?: React.MutableRefObject<() => { x: number; y: number }>;
   getSpawnPosRef?: React.MutableRefObject<() => { x: number; y: number }>;
+  activeTurnTokenId?: string | null;
 }
 
-export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef }: Props) {
+export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef, activeTurnTokenId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
@@ -257,6 +258,7 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
               gridSize={session.gridSize}
               heroImages={heroImages}
               onDragEnd={handleTokenDragEnd}
+              isActiveTurn={activeTurnTokenId === token.id}
             />
           ))}
         </Layer>

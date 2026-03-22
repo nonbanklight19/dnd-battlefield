@@ -1,6 +1,33 @@
 export type GridMode = "none" | "square" | "hex";
 
+export type Role = "dm" | "player";
+
+export type TokenStatus = "dead";
+
 export type HeroType = "warrior" | "wizard" | "rogue" | "dwarf" | "triton";
+
+export const HERO_TYPES: HeroType[] = ["warrior", "wizard", "rogue", "dwarf", "triton"];
+
+export interface HeroConfig {
+  heroType: HeroType;
+  hp: number | null;
+  ac: number | null;
+}
+
+export interface InitiativeRow {
+  id: string;
+  tokenId?: string;
+  initiative: number | null;
+  name: string;
+  hp: number | null;
+  ac: number | null;
+}
+
+export interface InitiativeState {
+  rows: InitiativeRow[];
+  activeIndex: number;
+  round: number;
+}
 
 export interface HeroToken {
   id: string;
@@ -9,6 +36,7 @@ export interface HeroToken {
   x: number;
   y: number;
   size: number;
+  statuses?: TokenStatus[];
 }
 
 export interface EnemyToken {
@@ -21,6 +49,7 @@ export interface EnemyToken {
   x: number;
   y: number;
   size: number;
+  statuses?: TokenStatus[];
 }
 
 export type Token = HeroToken | EnemyToken;

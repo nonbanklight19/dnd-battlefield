@@ -27,7 +27,6 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const db = new Database(path.join(DATA_DIR, "battlefield.db"));
 const state = new StateManager(db);
 state.startAutoSave(30000);
-
 const app = express();
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });

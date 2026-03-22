@@ -6,21 +6,47 @@ import { HomePage } from "./components/HomePage.js";
 import { BattleMap } from "./components/BattleMap.js";
 import { TopBar } from "./components/TopBar.js";
 import { SidePanel } from "./components/SidePanel.js";
-import type { GridMode } from "./types.js";
+import { RoleSelection } from "./components/RoleSelection.js";
+import { InitiativeTracker } from "./components/InitiativeTracker.js";
+import { TurnNotification } from "./components/TurnNotification.js";
+import { useActiveTurn } from "./hooks/useActiveTurn.js";
+import type { GridMode, Role } from "./types.js";
+
+// Detect /<CODE>/initiative route
+function parseRoute(): { sessionId: string | null; page: "battlefield" | "initiative" } {
+  const parts = window.location.pathname.slice(1).split("/");
+  const code = parts[0].toUpperCase();
+  const isValidCode = /^[A-Z0-9]{4}$/.test(code);
+  if (!isValidCode) return { sessionId: null, page: "battlefield" };
+  if (parts[1] === "initiative") return { sessionId: code, page: "initiative" };
+  return { sessionId: code, page: "battlefield" };
+}
 
 export function App() {
   const socket = useSocket();
   const heroImages = useHeroImages();
-  const [sessionId, setSessionId] = useState<string | null>(() => {
-    const path = window.location.pathname.slice(1).toUpperCase();
-    return /^[A-Z0-9]{4}$/.test(path) ? path : null;
+
+  const [route, setRoute] = useState(parseRoute);
+  const { sessionId, page } = route;
+
+  const [role, setRole] = useState<Role | null>(() => {
+    const { sessionId: id } = parseRoute();
+    if (!id) return null;
+    return (sessionStorage.getItem(`role:${id}`) as Role | null);
   });
   const [sidePanelVisible, setSidePanelVisible] = useState(false);
   const getViewCenterRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
   const getSpawnPosRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
 
-  const { session, connected, error, saveStatus, addHero, addEnemy, moveToken, removeToken, updateGrid, saveSession } =
+  const { session, connected, error, saveStatus, addHero, addEnemy, moveToken, removeToken, updateGrid, saveSession, setTokenStatus } =
     useSession(socket, sessionId);
+
+  const activeTurn = useActiveTurn(socket);
+
+  // Render initiative tracker page independently (uses its own socket connection)
+  if (page === "initiative" && sessionId) {
+    return <InitiativeTracker sessionId={sessionId} />;
+  }
 
   const handleCreate = async () => {
     const res = await fetch("/api/sessions", { method: "POST" });
@@ -30,13 +56,21 @@ export function App() {
       return;
     }
     const data = await res.json();
-    setSessionId(data.id);
+    setRole(null);
     window.history.pushState(null, "", `/${data.id}`);
+    setRoute({ sessionId: data.id, page: "battlefield" });
   };
 
   const handleJoin = (code: string) => {
-    setSessionId(code);
+    setRole((sessionStorage.getItem(`role:${code}`) as Role | null));
     window.history.pushState(null, "", `/${code}`);
+    setRoute({ sessionId: code, page: "battlefield" });
+  };
+
+  const handleRoleSelect = (selectedRole: Role) => {
+    if (!sessionId) return;
+    sessionStorage.setItem(`role:${sessionId}`, selectedRole);
+    setRole(selectedRole);
   };
 
   const handleUploadMap = useCallback(
@@ -85,7 +119,7 @@ export function App() {
 
   if (error) {
     const handleBack = () => {
-      setSessionId(null);
+      setRoute({ sessionId: null, page: "battlefield" });
       window.history.pushState(null, "", "/");
     };
     return (
@@ -116,17 +150,22 @@ export function App() {
         saveStatus={saveStatus}
         onSave={saveSession}
         onToggleSidePanel={() => setSidePanelVisible((v) => !v)}
+        role={role}
       />
-      <div className="flex flex-1 overflow-hidden">
-        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} getViewCenterRef={getViewCenterRef} getSpawnPosRef={getSpawnPosRef} />
+      {!role && <RoleSelection onSelect={handleRoleSelect} />}
+      <div className="flex flex-1 overflow-hidden relative">
+        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} getViewCenterRef={getViewCenterRef} getSpawnPosRef={getSpawnPosRef} activeTurnTokenId={activeTurn?.tokenId ?? null} />
+        <TurnNotification turn={activeTurn} socket={socket} />
         <SidePanel
           tokens={session.tokens}
           gridMode={session.gridMode}
           gridSize={session.gridSize}
           sessionId={session.id}
+          role={role}
           onAddHero={addHero}
           onAddEnemy={addEnemy}
           onRemoveToken={removeToken}
+          onSetTokenStatus={setTokenStatus}
           onUploadMap={handleUploadMap}
           onGridModeChange={handleGridModeChange}
           onGridSizeChange={handleGridSizeChange}

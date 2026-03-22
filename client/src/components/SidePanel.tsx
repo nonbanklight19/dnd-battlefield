@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { Token, GridMode } from "../types.js";
+import type { Token, GridMode, TokenStatus, Role } from "../types.js";
 import { HeroPicker } from "./HeroPicker.js";
 import { EnemyForm } from "./EnemyForm.js";
 
@@ -8,9 +8,11 @@ interface Props {
   gridMode: GridMode;
   gridSize: number;
   sessionId: string;
+  role: Role | null;
   onAddHero: (data: { heroType: string; x: number; y: number }) => void;
   onAddEnemy: (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => void;
   onRemoveToken: (id: string) => void;
+  onSetTokenStatus: (id: string, status: TokenStatus, active: boolean) => void;
   onUploadMap: (file: File) => void;
   onGridModeChange: (mode: GridMode) => void;
   onGridSizeChange: (size: number) => void;
@@ -71,12 +73,14 @@ function CollapsibleSection({
 }
 
 export function SidePanel({
-  tokens, gridMode, gridSize, sessionId,
-  onAddHero, onAddEnemy, onRemoveToken, onUploadMap,
+  tokens, gridMode, gridSize, sessionId, role,
+  onAddHero, onAddEnemy, onRemoveToken, onSetTokenStatus, onUploadMap,
   onGridModeChange, onGridSizeChange, visible, onClose, getViewCenter,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const isDM = role === "dm";
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,58 +111,62 @@ export function SidePanel({
           <div className="w-10 h-1 rounded-full bg-border-hover" />
         </div>
       )}
-      {/* Grid Setup — collapsed by default */}
-      <CollapsibleSection title="Grid Setup" defaultOpen={false}>
-        <div className="flex gap-1 bg-bg-deep rounded-lg p-1.5 border border-border-default mb-4">
-          {GRID_MODES.map((mode) => (
-            <button
-              key={mode}
-              onClick={() => onGridModeChange(mode)}
-              className={`flex-1 py-2 px-3 text-sm rounded-md text-center cursor-pointer transition-all duration-150 border-none ${
-                gridMode === mode
-                  ? "bg-gold-dim text-gold-bright"
-                  : "bg-transparent text-text-secondary hover:text-text-primary hover:bg-bg-hover"
-              }`}
-            >
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
-            </button>
-          ))}
-        </div>
-        {gridMode !== "none" && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-text-secondary">Size</span>
-            <input
-              type="range"
-              min={20}
-              max={120}
-              value={gridSize}
-              onChange={(e) => onGridSizeChange(Number(e.target.value))}
-              className="flex-1"
-            />
-            <span className="text-xs text-text-muted min-w-8 text-right">
-              {gridSize}px
-            </span>
+      {/* Grid Setup — DM only */}
+      {isDM && (
+        <CollapsibleSection title="Grid Setup" defaultOpen={false}>
+          <div className="flex gap-1 bg-bg-deep rounded-lg p-1.5 border border-border-default mb-4">
+            {GRID_MODES.map((mode) => (
+              <button
+                key={mode}
+                onClick={() => onGridModeChange(mode)}
+                className={`flex-1 py-2 px-3 text-sm rounded-md text-center cursor-pointer transition-all duration-150 border-none ${
+                  gridMode === mode
+                    ? "bg-gold-dim text-gold-bright"
+                    : "bg-transparent text-text-secondary hover:text-text-primary hover:bg-bg-hover"
+                }`}
+              >
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </button>
+            ))}
           </div>
-        )}
-      </CollapsibleSection>
+          {gridMode !== "none" && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-text-secondary">Size</span>
+              <input
+                type="range"
+                min={20}
+                max={120}
+                value={gridSize}
+                onChange={(e) => onGridSizeChange(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-xs text-text-muted min-w-8 text-right">
+                {gridSize}px
+              </span>
+            </div>
+          )}
+        </CollapsibleSection>
+      )}
 
-      {/* Battle Map */}
-      <CollapsibleSection title="Battle Map">
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          className="border border-dashed border-border-hover rounded-lg p-8 text-center text-text-muted text-sm cursor-pointer transition-all duration-150 bg-bg-deep hover:border-gold-muted hover:bg-gold-subtle hover:text-text-secondary"
-        >
-          <div className="text-3xl mb-3">🗺</div>
-          Drop image or click to upload
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-        </div>
-      </CollapsibleSection>
+      {/* Battle Map — DM only */}
+      {isDM && (
+        <CollapsibleSection title="Battle Map" defaultOpen={false}>
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="border border-dashed border-border-hover rounded-lg p-8 text-center text-text-muted text-sm cursor-pointer transition-all duration-150 bg-bg-deep hover:border-gold-muted hover:bg-gold-subtle hover:text-text-secondary"
+          >
+            <div className="text-3xl mb-3">🗺</div>
+            Drop image or click to upload
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
+        </CollapsibleSection>
+      )}
 
       {/* Place Hero */}
       <CollapsibleSection title="Place Hero">
@@ -176,22 +184,52 @@ export function SidePanel({
           {tokens.length === 0 && (
             <p className="text-text-muted text-sm text-center py-4">No tokens yet</p>
           )}
-          {tokens.map((t) => (
-            <div key={t.id} className="group flex items-center gap-3 py-3 px-3.5 bg-bg-deep rounded-lg border border-transparent transition-all duration-150 hover:border-border-default hover:bg-bg-elevated">
-              {t.kind === "hero" ? (
-                <>
-                  <div className="w-3.5 h-3.5 rounded-full shrink-0 bg-text-muted" />
-                  <span className="flex-1 text-sm text-text-primary capitalize">{t.heroType}</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm shrink-0">{t.icon}</span>
-                  <span className="flex-1 text-sm text-text-primary">{t.name}</span>
-                  <button onClick={() => onRemoveToken(t.id)} className="text-sm text-text-muted cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-150 hover:text-danger bg-transparent border-none">✕</button>
-                </>
-              )}
-            </div>
-          ))}
+          {tokens.map((t) => {
+            const isSelected = selectedTokenId === t.id;
+            const statuses = t.statuses ?? [];
+            const isDead = statuses.includes("dead");
+            return (
+              <div key={t.id} className={`flex flex-col rounded-lg border transition-all duration-150 overflow-hidden ${isSelected ? "border-border-default" : "border-transparent hover:border-border-default"}`}>
+                <div
+                  className={`group flex items-center gap-3 py-3 px-3.5 cursor-pointer transition-all duration-150 ${isSelected ? "bg-bg-elevated" : "bg-bg-deep hover:bg-bg-elevated"}`}
+                  onClick={() => setSelectedTokenId(isSelected ? null : t.id)}
+                >
+                  {t.kind === "hero" ? (
+                    <>
+                      <div className="w-3.5 h-3.5 rounded-full shrink-0 bg-text-muted" />
+                      <span className="flex-1 text-sm text-text-primary capitalize">{t.heroType}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm shrink-0">{t.icon}</span>
+                      <span className="flex-1 text-sm text-text-primary">{t.name}</span>
+                    </>
+                  )}
+                  {isDead && <span className="text-xs text-red-400 shrink-0">💀</span>}
+                  {t.kind === "enemy" && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRemoveToken(t.id); }}
+                      className="text-sm text-text-muted cursor-pointer transition-all duration-150 hover:text-danger bg-transparent border-none"
+                    >✕</button>
+                  )}
+                  <span className="text-[10px] text-text-muted transition-transform duration-150" style={{ transform: isSelected ? "rotate(0deg)" : "rotate(-90deg)" }}>▼</span>
+                </div>
+                {isSelected && (
+                  <div className="bg-bg-deep px-3.5 py-3 flex flex-col gap-2">
+                    <span className="text-[10px] uppercase tracking-widest text-text-muted">Status</span>
+                    <button
+                      onClick={() => onSetTokenStatus(t.id, "dead", !isDead)}
+                      className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm border cursor-pointer transition-all duration-150 ${isDead ? "bg-red-900/30 border-red-700 text-red-300" : "bg-bg-elevated border-border-default text-text-secondary hover:border-red-700 hover:text-red-300"}`}
+                    >
+                      <span>💀</span>
+                      <span>Dead</span>
+                      {isDead && <span className="ml-auto text-xs text-red-400">Active</span>}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </CollapsibleSection>
     </div>
