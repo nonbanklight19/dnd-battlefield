@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Circle, Text, Group, Rect, Image as KonvaImage } from "react-konva";
+import Konva from "konva";
 import type { EnemyToken as EnemyTokenType } from "../types.js";
 
 interface Props {
@@ -61,14 +62,12 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
         radius={radius}
         stroke={token.color}
         strokeWidth={3}
-        fill={customImg ? "#e8e0d0" : "#1a1a1a"}
+        fill="#1a1a1a"
       />
-      {!customImg && (
-        <Circle
-          radius={radius - 4}
-          fill="#111"
-        />
-      )}
+      <Circle
+        radius={radius - 4}
+        fill="#111"
+      />
       {customImg ? (
         <Group
           clipFunc={(ctx) => {
@@ -81,6 +80,8 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
             height={(radius - 5) * 2}
             offsetX={radius - 5}
             offsetY={radius - 5}
+            filters={[Konva.Filters.Invert]}
+            ref={(node) => { if (node) node.cache(); }}
           />
         </Group>
       ) : (
