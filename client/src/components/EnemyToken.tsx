@@ -61,7 +61,7 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd }: Props) {
         radius={radius}
         stroke={token.color}
         strokeWidth={3}
-        fill="#1a1a1a"
+        fill={customImg ? "#e8e0d0" : "#1a1a1a"}
       />
       {!customImg && (
         <Circle
