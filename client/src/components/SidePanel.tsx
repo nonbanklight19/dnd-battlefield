@@ -1,22 +1,21 @@
 import { useState, useRef } from "react";
 import type { Token, GridMode } from "../types.js";
+import { HeroPicker } from "./HeroPicker.js";
+import { EnemyForm } from "./EnemyForm.js";
 
 interface Props {
   tokens: Token[];
   gridMode: GridMode;
   gridSize: number;
-  onAddToken: (data: { name: string; color: string; x: number; y: number }) => void;
+  sessionId: string;
+  onAddHero: (data: { heroType: string; x: number; y: number }) => void;
+  onAddEnemy: (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => void;
   onRemoveToken: (id: string) => void;
   onUploadMap: (file: File) => void;
   onGridModeChange: (mode: GridMode) => void;
   onGridSizeChange: (size: number) => void;
   visible: boolean;
 }
-
-const PRESET_COLORS = [
-  "#e05252", "#f59e0b", "#4ade80", "#3b82f6",
-  "#7c6dec", "#ec4899", "#6b7280", "#e8e0d0",
-];
 
 const GRID_MODES: GridMode[] = ["none", "square", "hex"];
 
@@ -59,21 +58,13 @@ function CollapsibleSection({
 }
 
 export function SidePanel({
-  tokens, gridMode, gridSize,
-  onAddToken, onRemoveToken, onUploadMap,
+  tokens, gridMode, gridSize, sessionId,
+  onAddHero, onAddEnemy, onRemoveToken, onUploadMap,
   onGridModeChange, onGridSizeChange, visible,
 }: Props) {
-  const [name, setName] = useState("");
-  const [color, setColor] = useState(PRESET_COLORS[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!visible) return null;
-
-  const handleAdd = () => {
-    if (!name.trim()) return;
-    onAddToken({ name: name.trim(), color, x: 100, y: 100 });
-    setName("");
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -135,37 +126,14 @@ export function SidePanel({
         </div>
       </CollapsibleSection>
 
-      {/* Add Token */}
-      <CollapsibleSection title="Add Token">
-        <input
-          type="text"
-          placeholder="Token name..."
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          className="w-full py-2.5 px-3.5 bg-bg-deep border border-border-default rounded-lg text-text-primary text-sm outline-none transition-all duration-150 focus:border-gold-muted focus:shadow-[0_0_0_3px_rgba(202,169,104,0.15)] mb-4"
-        />
-        <div className="flex gap-2 flex-wrap mb-4">
-          {PRESET_COLORS.map((c) => (
-            <div
-              key={c}
-              onClick={() => setColor(c)}
-              className="w-7 h-7 rounded-full cursor-pointer transition-all duration-150 hover:scale-115"
-              style={{
-                background: c,
-                border: c === color ? "2px solid var(--color-gold-bright)" : "2px solid transparent",
-                boxShadow: c === color ? "0 0 8px rgba(202,169,104,0.3)" : "none",
-              }}
-            />
-          ))}
-        </div>
-        <button
-          onClick={handleAdd}
-          disabled={!name.trim()}
-          className="w-full py-2.5 bg-gold-dim text-gold-bright border border-border-hover rounded-lg text-sm font-medium cursor-pointer transition-all duration-150 hover:bg-gold-subtle hover:border-gold-muted disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          + Add Token
-        </button>
+      {/* Place Hero */}
+      <CollapsibleSection title="Place Hero">
+        <HeroPicker tokens={tokens} onAddHero={onAddHero} onRemoveToken={onRemoveToken} />
+      </CollapsibleSection>
+
+      {/* Add Enemy */}
+      <CollapsibleSection title="Add Enemy">
+        <EnemyForm sessionId={sessionId} onAddEnemy={onAddEnemy} />
       </CollapsibleSection>
 
       {/* Tokens list */}
@@ -175,21 +143,19 @@ export function SidePanel({
             <p className="text-text-muted text-sm text-center py-4">No tokens yet</p>
           )}
           {tokens.map((t) => (
-            <div
-              key={t.id}
-              className="group flex items-center gap-3 py-3 px-3.5 bg-bg-deep rounded-lg border border-transparent transition-all duration-150 hover:border-border-default hover:bg-bg-elevated"
-            >
-              <div
-                className="w-3.5 h-3.5 rounded-full shrink-0"
-                style={{ background: t.color }}
-              />
-              <span className="flex-1 text-sm text-text-primary">{t.name}</span>
-              <button
-                onClick={() => onRemoveToken(t.id)}
-                className="text-sm text-text-muted cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-150 hover:text-danger bg-transparent border-none"
-              >
-                ✕
-              </button>
+            <div key={t.id} className="group flex items-center gap-3 py-3 px-3.5 bg-bg-deep rounded-lg border border-transparent transition-all duration-150 hover:border-border-default hover:bg-bg-elevated">
+              {t.kind === "hero" ? (
+                <>
+                  <div className="w-3.5 h-3.5 rounded-full shrink-0 bg-text-muted" />
+                  <span className="flex-1 text-sm text-text-primary capitalize">{t.heroType}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm shrink-0">{t.icon}</span>
+                  <span className="flex-1 text-sm text-text-primary">{t.name}</span>
+                  <button onClick={() => onRemoveToken(t.id)} className="text-sm text-text-muted cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-150 hover:text-danger bg-transparent border-none">✕</button>
+                </>
+              )}
             </div>
           ))}
         </div>
