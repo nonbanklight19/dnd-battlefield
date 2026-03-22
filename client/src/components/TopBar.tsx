@@ -1,10 +1,11 @@
 interface Props {
   sessionId: string;
+  saveStatus: "idle" | "saving" | "saved";
   onSave: () => void;
   onToggleSidePanel: () => void;
 }
 
-export function TopBar({ sessionId, onSave, onToggleSidePanel }: Props) {
+export function TopBar({ sessionId, saveStatus, onSave, onToggleSidePanel }: Props) {
   const copyCode = () => {
     navigator.clipboard.writeText(window.location.href);
   };
@@ -28,10 +29,17 @@ export function TopBar({ sessionId, onSave, onToggleSidePanel }: Props) {
       <div className="flex items-center gap-1">
       <button
         onClick={onSave}
+        disabled={saveStatus === "saving"}
         title="Save"
-        className="w-10 h-10 flex items-center justify-center bg-transparent border border-transparent rounded-lg text-text-secondary text-base cursor-pointer transition-all duration-150 hover:text-gold-bright hover:bg-gold-subtle hover:border-border-default"
+        className={`w-10 h-10 flex items-center justify-center border rounded-lg text-base cursor-pointer transition-all duration-150 ${
+          saveStatus === "saved"
+            ? "bg-green-900/30 border-green-700 text-green-400"
+            : saveStatus === "saving"
+              ? "bg-transparent border-transparent text-text-muted cursor-wait"
+              : "bg-transparent border-transparent text-text-secondary hover:text-gold-bright hover:bg-gold-subtle hover:border-border-default"
+        }`}
       >
-        💾
+        {saveStatus === "saved" ? "\u2713" : saveStatus === "saving" ? "\u23F3" : "\uD83D\uDCBE"}
       </button>
       <button
         onClick={onToggleSidePanel}

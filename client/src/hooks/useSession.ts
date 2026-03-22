@@ -5,19 +5,25 @@ import type { SessionState, Token, GridMode, MapData } from "../types.js";
 export function useSession(socket: Socket | null, sessionId: string | null) {
   const [session, setSession] = useState<SessionState | null>(null);
   const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   useEffect(() => {
     if (!socket || !sessionId) return;
 
     socket.emit("session:join", sessionId);
 
+    setError(null);
+
     const onState = (data: SessionState) => {
       setSession(data);
       setConnected(true);
+      setError(null);
     };
     const onError = (err: { message: string }) => {
       console.error("Session error:", err.message);
       setConnected(false);
+      setError(err.message);
     };
     const onTokenAdded = (token: Token) => {
       setSession((prev) =>
@@ -51,6 +57,10 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
     const onMapUpdated = (data: MapData) => {
       setSession((prev) => (prev ? { ...prev, map: data } : prev));
     };
+    const onSessionSaved = () => {
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    };
     const onReconnect = () => {
       socket.emit("session:join", sessionId);
     };
@@ -62,6 +72,7 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
     socket.on("token:removed", onTokenRemoved);
     socket.on("grid:updated", onGridUpdated);
     socket.on("map:updated", onMapUpdated);
+    socket.on("session:saved", onSessionSaved);
     socket.io.on("reconnect", onReconnect);
 
     return () => {
@@ -72,6 +83,7 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
       socket.off("token:removed", onTokenRemoved);
       socket.off("grid:updated", onGridUpdated);
       socket.off("map:updated", onMapUpdated);
+      socket.off("session:saved", onSessionSaved);
       socket.io.off("reconnect", onReconnect);
     };
   }, [socket, sessionId]);
@@ -120,12 +132,15 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
   );
 
   const saveSession = useCallback(() => {
+    setSaveStatus("saving");
     socket?.emit("session:save");
   }, [socket]);
 
   return {
     session,
     connected,
+    error,
+    saveStatus,
     addToken,
     moveToken,
     removeToken,

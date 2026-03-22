@@ -31,7 +31,7 @@ export function HomePage({ onCreateSession, onJoinSession }: Props) {
             type="text"
             placeholder="CODE"
             value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            onChange={(e) => setJoinCode(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
             maxLength={4}
             className="flex-1 py-3.5 px-4 bg-bg-deep border border-border-default rounded-lg text-text-primary text-[15px] text-center tracking-[0.3em] font-semibold outline-none transition-all duration-150 focus:border-gold-muted focus:shadow-[0_0_0_3px_rgba(202,169,104,0.15)] placeholder:text-text-muted placeholder:tracking-widest placeholder:font-normal"
           />

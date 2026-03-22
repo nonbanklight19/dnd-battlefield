@@ -5,7 +5,12 @@ export function setupSocketHandlers(io: Server, state: StateManager) {
   const clientSessions = new Map<string, string>(); // socketId -> sessionId
 
   io.on("connection", (socket: Socket) => {
-    socket.on("session:join", (sessionId: string) => {
+    socket.on("session:join", (rawSessionId: string) => {
+      const sessionId = rawSessionId.toUpperCase();
+      if (!/^[A-Z0-9]{4}$/.test(sessionId)) {
+        socket.emit("session:error", { message: "Invalid session code" });
+        return;
+      }
       const session = state.getSession(sessionId);
       if (!session) {
         socket.emit("session:error", { message: "Session not found" });
@@ -39,6 +44,7 @@ export function setupSocketHandlers(io: Server, state: StateManager) {
       if (!sessionId) return;
       if (state.removeToken(sessionId, data.id)) {
         socket.to(sessionId).emit("token:removed", data);
+        socket.emit("token:removed", data);
       }
     });
 

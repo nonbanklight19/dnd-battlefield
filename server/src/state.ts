@@ -1,4 +1,6 @@
-import { nanoid } from "nanoid";
+import { nanoid, customAlphabet } from "nanoid";
+
+const sessionIdGen = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 4);
 import type { Session, Token, GridMode, MapData } from "./types.js";
 import type { Database } from "./db.js";
 
@@ -20,7 +22,7 @@ export class StateManager {
   }
 
   private generateId(): string {
-    return nanoid(4).toUpperCase();
+    return sessionIdGen();
   }
 
   createSession(): Session {

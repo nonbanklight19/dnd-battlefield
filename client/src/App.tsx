@@ -10,12 +10,12 @@ import type { GridMode } from "./types.js";
 export function App() {
   const socket = useSocket();
   const [sessionId, setSessionId] = useState<string | null>(() => {
-    const path = window.location.pathname.slice(1);
-    return path.length === 4 ? path : null;
+    const path = window.location.pathname.slice(1).toUpperCase();
+    return /^[A-Z0-9]{4}$/.test(path) ? path : null;
   });
   const [sidePanelVisible, setSidePanelVisible] = useState(true);
 
-  const { session, connected, addToken, moveToken, removeToken, updateGrid, saveSession } =
+  const { session, connected, error, saveStatus, addToken, moveToken, removeToken, updateGrid, saveSession } =
     useSession(socket, sessionId);
 
   const handleCreate = async () => {
@@ -79,6 +79,24 @@ export function App() {
     return <HomePage onCreateSession={handleCreate} onJoinSession={handleJoin} />;
   }
 
+  if (error) {
+    const handleBack = () => {
+      setSessionId(null);
+      window.history.pushState(null, "", "/");
+    };
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4">
+        <p className="text-red-400 font-body text-lg">{error}</p>
+        <button
+          onClick={handleBack}
+          className="py-2 px-6 bg-transparent text-gold-bright font-medium border border-border-hover rounded-lg cursor-pointer transition-all duration-150 hover:bg-gold-subtle hover:border-gold-muted"
+        >
+          Back to Home
+        </button>
+      </div>
+    );
+  }
+
   if (!session || !connected) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -91,6 +109,7 @@ export function App() {
     <>
       <TopBar
         sessionId={session.id}
+        saveStatus={saveStatus}
         onSave={saveSession}
         onToggleSidePanel={() => setSidePanelVisible((v) => !v)}
       />

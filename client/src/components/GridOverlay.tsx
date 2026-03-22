@@ -16,16 +16,16 @@ export function GridOverlay({ gridMode, gridSize, width, height }: Props) {
 
 function SquareGrid({ gridSize, width, height }: { gridSize: number; width: number; height: number }) {
   const lines: JSX.Element[] = [];
-  const stroke = "rgba(202, 169, 104, 0.08)";
+  const stroke = "rgba(202, 169, 104, 0.35)";
 
   for (let x = 0; x <= width; x += gridSize) {
     lines.push(
-      <Line key={`v${x}`} points={[x, 0, x, height]} stroke={stroke} strokeWidth={1} />
+      <Line key={`v${x}`} points={[x, 0, x, height]} stroke={stroke} strokeWidth={1.5} />
     );
   }
   for (let y = 0; y <= height; y += gridSize) {
     lines.push(
-      <Line key={`h${y}`} points={[0, y, width, y]} stroke={stroke} strokeWidth={1} />
+      <Line key={`h${y}`} points={[0, y, width, y]} stroke={stroke} strokeWidth={1.5} />
     );
   }
   return <>{lines}</>;
@@ -33,7 +33,7 @@ function SquareGrid({ gridSize, width, height }: { gridSize: number; width: numb
 
 function HexGrid({ gridSize, width, height }: { gridSize: number; width: number; height: number }) {
   const lines: JSX.Element[] = [];
-  const stroke = "rgba(202, 169, 104, 0.08)";
+  const stroke = "rgba(202, 169, 104, 0.35)";
   const hexW = gridSize * Math.sqrt(3);
   const hexH = gridSize * 1.5;
 
@@ -50,7 +50,7 @@ function HexGrid({ gridSize, width, height }: { gridSize: number; width: number;
         points.push(cx + gridSize * Math.cos(angle), cy + gridSize * Math.sin(angle));
       }
       lines.push(
-        <Line key={`hex${idx++}`} points={points} stroke={stroke} strokeWidth={1} closed />
+        <Line key={`hex${idx++}`} points={points} stroke={stroke} strokeWidth={1.5} closed />
       );
     }
   }
