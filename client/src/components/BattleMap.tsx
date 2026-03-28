@@ -23,6 +23,7 @@ interface Props {
 
 export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef, activeTurnTokenId, rulerActive = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -36,11 +37,17 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
   rulerStartRef.current = rulerStart;
   rulerActiveRef.current = rulerActive;
 
-  // Clear ruler when deactivated
+  // Clear ruler when deactivated and reset any in-progress gesture state
   useEffect(() => {
     if (!rulerActive) {
       setRulerStart(null);
       setRulerEnd(null);
+      // Stop any Konva drag that may have been started by a lingering touch
+      stageRef.current?.stopDrag();
+      // Reset pinch tracking so the next 2-finger gesture starts clean
+      isPinching.current = false;
+      lastTouchDist.current = 0;
+      lastTouchCenter.current = null;
     }
   }, [rulerActive]);
 
@@ -228,11 +235,19 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
 
   const handleTouchStart = useCallback((e: any) => {
     if (e.evt.touches.length === 2) {
+      const stage = e.target.getStage();
+      // Sync our refs with the actual Konva stage state.
+      // Konva's built-in drag (draggable=true) updates stage.x()/y() internally
+      // without going through React state, so stagePosRef may be stale.
+      // Reading directly here ensures the first handleTouchMove frame is correct.
+      if (stage) {
+        stagePosRef.current = { x: stage.x(), y: stage.y() };
+        scaleRef.current = stage.scaleX();
+      }
       isPinching.current = true;
       lastTouchDist.current = getTouchDist(e.evt.touches[0], e.evt.touches[1]);
       lastTouchCenter.current = getTouchCenter(e.evt.touches[0], e.evt.touches[1]);
-      // Stop one-finger drag so it doesn't fight with the pinch
-      e.target.getStage()?.stopDrag();
+      stage?.stopDrag();
     } else if (e.evt.touches.length === 1 && rulerActiveRef.current) {
       // Single-finger ruler: set start point or clear
       e.evt.preventDefault();
@@ -407,6 +422,7 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
       }}
     >
       <Stage
+        ref={stageRef}
         width={dimensions.width}
         height={dimensions.height}
         x={stagePos.x}
