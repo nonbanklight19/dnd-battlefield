@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Group, Rect, Text } from "react-konva";
-import type { SessionState, HeroType } from "../types.js";
+import type { SessionState, HeroType, AoeEffect, AoeType, AoeColor } from "../types.js";
 import { TokenComponent } from "./Token.js";
 import { GridOverlay } from "./GridOverlay.js";
+import { AoeShapeComponent } from "./AoeShape.js";
 
 // Returns true when a token size multiplier corresponds to an even number of grid cells.
 // size=1 → ~1 cell (odd), size=2.4 → ~2 cells (even), size=3.5 → ~3 cells (odd)
@@ -19,15 +20,34 @@ interface Props {
   getSpawnPosRef?: React.MutableRefObject<(tokenSize?: number) => { x: number; y: number }>;
   activeTurnTokenId?: string | null;
   rulerActive?: boolean;
+  aoeEffects?: AoeEffect[];
+  aoeMode?: { type: AoeType; feet: number; color: AoeColor; originSize: 1 | 2 | 3 } | null;
+  onPlaceAoe?: (x: number, y: number) => void;
+  onMoveAoe?: (id: string, x: number, y: number) => void;
+  onRotateAoe?: (id: string, rotation: number) => void;
+  selectedAoeId?: string | null;
+  onSelectAoe?: (id: string) => void;
+  onDeselectAoe?: () => void;
 }
 
-export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef, activeTurnTokenId, rulerActive = false }: Props) {
+export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef, activeTurnTokenId, rulerActive = false, aoeEffects = [], aoeMode = null, onPlaceAoe, onMoveAoe, onRotateAoe, selectedAoeId, onSelectAoe, onDeselectAoe }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
+
+  // AoE placement preview
+  const [aoePreviewPos, setAoePreviewPos] = useState<{ x: number; y: number } | null>(null);
+  const aoeModeRef = useRef(aoeMode);
+  const onPlaceAoeRef = useRef(onPlaceAoe);
+  aoeModeRef.current = aoeMode;
+  onPlaceAoeRef.current = onPlaceAoe;
+
+  useEffect(() => {
+    if (!aoeMode) setAoePreviewPos(null);
+  }, [aoeMode]);
 
   // Ruler state
   const [rulerStart, setRulerStart] = useState<{ x: number; y: number } | null>(null);
@@ -259,6 +279,12 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
         setRulerStart(null);
         setRulerEnd(null);
       }
+    } else if (e.evt.touches.length === 1 && aoeModeRef.current) {
+      // Single-finger AoE placement
+      e.evt.preventDefault();
+      const pos = touchToCanvas(e.evt.touches[0]);
+      const snapped = snapAoeOriginRef.current(pos.x, pos.y, aoeModeRef.current.originSize ?? 1);
+      onPlaceAoeRef.current?.(snapped.x, snapped.y);
     }
   }, []);
 
@@ -312,24 +338,32 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
     }
   }, []);
 
-  // ── Ruler mouse handlers (fired from the transparent overlay Rect) ──────────
+  // ── Top-layer mouse handlers (ruler + AoE placement) ─────────────────────
   const handleRulerMouseDown = useCallback((e: any) => {
     const stage = e.target.getStage();
     const pos = stage.getRelativePointerPosition();
-    if (!rulerStartRef.current) {
-      setRulerStart(pos);
-      setRulerEnd(pos);
+    if (aoeModeRef.current) {
+      const snapped = snapAoeOriginRef.current(pos.x, pos.y, aoeModeRef.current.originSize ?? 1);
+      onPlaceAoeRef.current?.(snapped.x, snapped.y);
     } else {
-      setRulerStart(null);
-      setRulerEnd(null);
+      if (!rulerStartRef.current) {
+        setRulerStart(pos);
+        setRulerEnd(pos);
+      } else {
+        setRulerStart(null);
+        setRulerEnd(null);
+      }
     }
   }, []);
 
   const handleRulerMouseMove = useCallback((e: any) => {
-    if (!rulerStartRef.current) return;
     const stage = e.target.getStage();
     const pos = stage.getRelativePointerPosition();
-    setRulerEnd(pos);
+    if (aoeModeRef.current) {
+      const snapped = snapAoeOriginRef.current(pos.x, pos.y, aoeModeRef.current.originSize ?? 1);
+      setAoePreviewPos(snapped);
+    }
+    if (rulerStartRef.current) setRulerEnd(pos);
   }, []);
 
   // ── Snapping ─────────────────────────────────────────────────────────────────
@@ -389,6 +423,40 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
     [snapToGrid, onMoveToken, session.tokens]
   );
 
+  // ── AOE snapping ──────────────────────────────────────────────────────────────
+  const snapAoeOrigin = useCallback(
+    (x: number, y: number, originSize: 1 | 2 | 3): { x: number; y: number } => {
+      if (session.gridMode === "none") return { x, y };
+      const gs = session.gridSize;
+      if (session.gridMode === "square") {
+        if (originSize === 2) {
+          // 2×2: origin sits on a grid corner (intersection of 4 cells)
+          return { x: Math.round(x / gs) * gs, y: Math.round(y / gs) * gs };
+        }
+        // 1×1 and 3×3: origin sits on a cell centre
+        return { x: Math.floor(x / gs) * gs + gs / 2, y: Math.floor(y / gs) * gs + gs / 2 };
+      }
+      // Hex: snap to nearest hex centre (reuse existing logic)
+      return snapToGrid(x, y, 1);
+    },
+    [session.gridMode, session.gridSize, snapToGrid]
+  );
+
+  const snapAoeOriginRef = useRef(snapAoeOrigin);
+  snapAoeOriginRef.current = snapAoeOrigin;
+
+  const aoeEffectsRef = useRef(aoeEffects);
+  aoeEffectsRef.current = aoeEffects;
+
+  const handleAoeDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      const aoe = aoeEffectsRef.current.find((e) => e.id === id);
+      const snapped = snapAoeOriginRef.current(x, y, aoe?.originSize ?? 1);
+      onMoveAoe?.(id, snapped.x, snapped.y);
+    },
+    [onMoveAoe]
+  );
+
   // ── Ruler distance ────────────────────────────────────────────────────────────
   const rulerFeet = (() => {
     if (!rulerStart || !rulerEnd) return 0;
@@ -418,7 +486,7 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
         overflow: "hidden",
         background: "#0a0c07",
         touchAction: "none",
-        cursor: rulerActive ? "crosshair" : "default",
+        cursor: (rulerActive || !!aoeMode) ? "crosshair" : "default",
       }}
     >
       <Stage
@@ -439,6 +507,9 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
           if (e.target === e.target.getStage()) {
             setStagePos({ x: e.target.x(), y: e.target.y() });
           }
+        }}
+        onClick={(e) => {
+          if (e.target === e.target.getStage()) onDeselectAoe?.();
         }}
         onWheel={handleWheel}
         onTouchStart={handleTouchStart}
@@ -462,6 +533,23 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
             height={session.map?.height || mapImage?.height || 2000}
           />
         </Layer>
+
+        {/* ── AoE shapes layer (below tokens) ──────────────────────────────── */}
+        <Layer>
+          {aoeEffects.map((aoe) => (
+            <AoeShapeComponent
+              key={aoe.id}
+              aoe={aoe}
+              gridSize={session.gridSize}
+              scale={scale}
+              onMove={handleAoeDragEnd}
+              onRotate={onRotateAoe}
+              onSelect={onSelectAoe}
+              selected={selectedAoeId === aoe.id}
+            />
+          ))}
+        </Layer>
+
         <Layer>
           {session.tokens.map((token) => (
             <TokenComponent
@@ -475,10 +563,10 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
           ))}
         </Layer>
 
-        {/* ── Ruler layer (always on top) ───────────────────────────────────── */}
+        {/* ── Top layer: interaction overlay + ruler + AoE preview ─────────── */}
         <Layer>
-          {/* Transparent overlay captures mouse events when ruler is active */}
-          {rulerActive && (
+          {/* Transparent overlay: active when ruler or AoE placement is on */}
+          {(rulerActive || !!aoeMode) && (
             <Rect
               x={-50000}
               y={-50000}
@@ -487,6 +575,25 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
               fill="transparent"
               onMouseDown={handleRulerMouseDown}
               onMouseMove={handleRulerMouseMove}
+            />
+          )}
+
+          {/* AoE ghost preview following the mouse */}
+          {aoeMode && aoePreviewPos && (
+            <AoeShapeComponent
+              aoe={{
+                id: "__aoe_preview__",
+                type: aoeMode.type,
+                feet: aoeMode.feet,
+                x: aoePreviewPos.x,
+                y: aoePreviewPos.y,
+                rotation: 0,
+                color: aoeMode.color,
+                originSize: aoeMode.originSize,
+              }}
+              gridSize={session.gridSize}
+              scale={scale}
+              preview
             />
           )}
 

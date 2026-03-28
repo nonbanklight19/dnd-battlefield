@@ -12,7 +12,8 @@ import { TurnNotification } from "./components/TurnNotification.js";
 import { useActiveTurn } from "./hooks/useActiveTurn.js";
 import { useInitiative } from "./hooks/useInitiative.js";
 import { InitiativeOverlay } from "./components/InitiativeOverlay.js";
-import type { GridMode, Role } from "./types.js";
+import { AoePanel } from "./components/AoePanel.js";
+import type { GridMode, Role, AoeEffect, AoeType, AoeColor } from "./types.js";
 
 // Detect /<CODE>/initiative route
 function parseRoute(): { sessionId: string | null; page: "battlefield" | "initiative" } {
@@ -38,14 +39,59 @@ export function App() {
   });
   const [sidePanelVisible, setSidePanelVisible] = useState(false);
   const [rulerActive, setRulerActive] = useState(false);
+  const [aoeOpen, setAoeOpen] = useState(false);
+  const [aoeMode, setAoeMode] = useState<{ type: AoeType; feet: number; color: AoeColor; originSize: 1 | 2 | 3 } | null>(null);
+  const [aoeEffects, setAoeEffects] = useState<AoeEffect[]>([]);
+  const [selectedAoeId, setSelectedAoeId] = useState<string | null>(null);
+  const aoeIdRef = useRef(0);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && rulerActive) setRulerActive(false);
+      if (e.key === "Escape") {
+        if (rulerActive) setRulerActive(false);
+        if (aoeMode) setAoeMode(null);
+        if (selectedAoeId) setSelectedAoeId(null);
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedAoeId) {
+        e.preventDefault();
+        setAoeEffects((prev) => prev.filter((ef) => ef.id !== selectedAoeId));
+        setSelectedAoeId(null);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [rulerActive]);
+  }, [rulerActive, aoeMode, selectedAoeId]);
+
+  const handleStartPlaceAoe = useCallback((type: AoeType, feet: number, color: AoeColor, originSize: 1 | 2 | 3) => {
+    setAoeMode({ type, feet, color, originSize });
+  }, []);
+
+  const handlePlaceAoe = useCallback((x: number, y: number) => {
+    setAoeMode((mode) => {
+      if (!mode) return null;
+      const id = `aoe_${++aoeIdRef.current}`;
+      setAoeEffects((prev) => [...prev, { id, ...mode, x, y, rotation: 0 }]);
+      return null; // exit placement mode after first placement
+    });
+  }, []);
+
+  const handleMoveAoe = useCallback((id: string, x: number, y: number) => {
+    setAoeEffects((prev) => prev.map((e) => (e.id === id ? { ...e, x, y } : e)));
+  }, []);
+
+  const handleRotateAoe = useCallback((id: string, rotation: number) => {
+    setAoeEffects((prev) => prev.map((e) => (e.id === id ? { ...e, rotation } : e)));
+  }, []);
+
+  const handleDeleteAoe = useCallback((id: string) => {
+    setAoeEffects((prev) => prev.filter((e) => e.id !== id));
+    setSelectedAoeId((prev) => (prev === id ? null : prev));
+  }, []);
+
+  const handleClearAoe = useCallback(() => {
+    setAoeEffects([]);
+    setSelectedAoeId(null);
+  }, []);
   const getViewCenterRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
   const getSpawnPosRef = useRef<(tokenSize?: number) => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
 
@@ -165,10 +211,41 @@ export function App() {
         role={role}
         rulerActive={rulerActive}
         onToggleRuler={() => setRulerActive((v) => !v)}
+        aoeOpen={aoeOpen}
+        onToggleAoe={() => {
+          if (aoeOpen) { setAoeOpen(false); setAoeMode(null); }
+          else setAoeOpen(true);
+        }}
       />
       {!role && <RoleSelection onSelect={handleRoleSelect} />}
+      <AoePanel
+        open={aoeOpen}
+        onClose={() => setAoeOpen(false)}
+        effects={aoeEffects}
+        placing={!!aoeMode}
+        onStartPlace={handleStartPlaceAoe}
+        onCancelPlace={() => setAoeMode(null)}
+        onDeleteEffect={handleDeleteAoe}
+        onClearAll={handleClearAoe}
+      />
       <div className="flex flex-1 overflow-hidden relative">
-        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} getViewCenterRef={getViewCenterRef} getSpawnPosRef={getSpawnPosRef} activeTurnTokenId={activeTurn?.tokenId ?? null} rulerActive={rulerActive} />
+        <BattleMap
+          session={session}
+          heroImages={heroImages}
+          onMoveToken={moveToken}
+          getViewCenterRef={getViewCenterRef}
+          getSpawnPosRef={getSpawnPosRef}
+          activeTurnTokenId={activeTurn?.tokenId ?? null}
+          rulerActive={rulerActive}
+          aoeEffects={aoeEffects}
+          aoeMode={aoeMode}
+          onPlaceAoe={handlePlaceAoe}
+          onMoveAoe={handleMoveAoe}
+          onRotateAoe={handleRotateAoe}
+          selectedAoeId={selectedAoeId}
+          onSelectAoe={setSelectedAoeId}
+          onDeselectAoe={() => setSelectedAoeId(null)}
+        />
         <InitiativeOverlay initiative={initiativeState} />
         <TurnNotification turn={activeTurn} socket={socket} />
         <SidePanel

@@ -6,6 +6,20 @@ export type TokenStatus = "dead";
 
 export type HeroType = "warrior" | "wizard" | "rogue" | "dwarf" | "triton";
 
+export type AoeType = "circle" | "cone" | "line" | "square";
+export type AoeColor = "fire" | "cold" | "lightning" | "poison" | "necrotic" | "radiant" | "psychic";
+
+export interface AoeEffect {
+  id: string;
+  type: AoeType;
+  feet: number;
+  x: number;
+  y: number;
+  rotation: number; // radians — meaningful for cone & line
+  color: AoeColor;
+  originSize: 1 | 2 | 3; // grid cells for the origin footprint (1×1, 2×2, 3×3)
+}
+
 export const HERO_TYPES: HeroType[] = ["warrior", "wizard", "rogue", "dwarf", "triton"];
 
 export interface HeroConfig {
