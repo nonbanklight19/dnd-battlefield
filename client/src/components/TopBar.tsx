@@ -20,7 +20,7 @@ export function TopBar({ sessionId, saveStatus, onSave, onToggleSidePanel, role,
   const roleLabel = role === "dm" ? "👑 DM" : role === "player" ? "🧙 Player" : null;
 
   return (
-    <div className="flex items-center gap-2 md:gap-4 px-3 md:px-6 h-16 md:h-14 bg-bg-surface border-b border-border-default shrink-0 min-w-0 overflow-hidden">
+    <div className="sticky top-0 z-30 flex items-center gap-2 md:gap-4 px-3 md:px-6 h-16 md:h-14 bg-bg-surface border-b border-border-default shrink-0 min-w-0 overflow-hidden">
       {/* Title + sub-row stacked on mobile, inline on desktop */}
       <div className="flex flex-col md:flex-row md:items-center md:gap-3 shrink-0 mr-1">
         <span className="font-display text-sm md:text-base font-semibold text-gold-bright leading-tight whitespace-nowrap">
