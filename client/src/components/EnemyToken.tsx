@@ -55,7 +55,8 @@ export function EnemyTokenComponent({ token, gridSize, onDragEnd, isActiveTurn }
     return () => { animRef.current?.stop(); animRef.current = null; };
   }, [isActiveTurn]);
 
-  const nameFontSize = Math.max(8, radius * 0.5);
+  // Name plate always uses the same size as a 1×1 token regardless of token.size
+  const nameFontSize = Math.max(8, gridSize * 0.2);
   const plateWidth = Math.max(radius * 2, token.name.length * nameFontSize * 0.6);
   const plateHeight = nameFontSize + 6;
   const isDead = token.statuses?.includes("dead") ?? false;

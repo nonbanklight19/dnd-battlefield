@@ -129,7 +129,7 @@ export function setupSocketHandlers(io: Server, state: StateManager) {
       }
     });
 
-    socket.on("token:add-enemy", (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => {
+    socket.on("token:add-enemy", (data: { name: string; color: string; icon: string; customImage?: string; size?: number; x: number; y: number }) => {
       const sessionId = clientSessions.get(socket.id);
       if (!sessionId) return;
       const token = state.addEnemy(sessionId, data);

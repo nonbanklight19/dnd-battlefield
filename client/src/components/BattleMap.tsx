@@ -4,12 +4,19 @@ import type { SessionState, HeroType } from "../types.js";
 import { TokenComponent } from "./Token.js";
 import { GridOverlay } from "./GridOverlay.js";
 
+// Returns true when a token size multiplier corresponds to an even number of grid cells.
+// size=1 → ~1 cell (odd), size=2.4 → ~2 cells (even), size=3.5 → ~3 cells (odd)
+function isEvenCellToken(tokenSize: number): boolean {
+  const cells = Math.round((tokenSize / 2.5) * 2);
+  return cells % 2 === 0;
+}
+
 interface Props {
   session: SessionState;
   heroImages: Record<HeroType, HTMLImageElement> | null;
   onMoveToken: (id: string, x: number, y: number) => void;
   getViewCenterRef?: React.MutableRefObject<() => { x: number; y: number }>;
-  getSpawnPosRef?: React.MutableRefObject<() => { x: number; y: number }>;
+  getSpawnPosRef?: React.MutableRefObject<(tokenSize?: number) => { x: number; y: number }>;
   activeTurnTokenId?: string | null;
 }
 
@@ -51,7 +58,7 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
 
   useEffect(() => {
     if (!getSpawnPosRef) return;
-    getSpawnPosRef.current = () => {
+    getSpawnPosRef.current = (tokenSize = 1) => {
       const { width, height } = dimensionsRef.current;
       const { x, y } = stagePosRef.current;
       const s = scaleRef.current;
@@ -63,24 +70,31 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
       // No grid — just return center
       if (gridMode === "none") return { x: cx, y: cy };
 
-      // Collect occupied cell centers
+      const evenCell = isEvenCellToken(tokenSize);
+
+      // Collect occupied positions
       const occupied = new Set(tokens.map((t) => `${Math.round(t.x)},${Math.round(t.y)}`));
 
       // Generate candidate grid positions by spiralling outward from center
       const candidates: { x: number; y: number }[] = [];
 
       if (gridMode === "square") {
-        const cellX = Math.floor(cx / gridSize) * gridSize + gridSize / 2;
-        const cellY = Math.floor(cy / gridSize) * gridSize + gridSize / 2;
-        // Spiral through square cells
+        // Even-cell tokens (2×2) snap to corners; odd-cell tokens snap to cell centers
+        const originX = evenCell
+          ? Math.round(cx / gridSize) * gridSize
+          : Math.floor(cx / gridSize) * gridSize + gridSize / 2;
+        const originY = evenCell
+          ? Math.round(cy / gridSize) * gridSize
+          : Math.floor(cy / gridSize) * gridSize + gridSize / 2;
+        // Spiral through grid positions
         for (let radius = 0; radius <= 20; radius++) {
           if (radius === 0) {
-            candidates.push({ x: cellX, y: cellY });
+            candidates.push({ x: originX, y: originY });
           } else {
             for (let dx = -radius; dx <= radius; dx++) {
               for (let dy = -radius; dy <= radius; dy++) {
                 if (Math.abs(dx) === radius || Math.abs(dy) === radius) {
-                  candidates.push({ x: cellX + dx * gridSize, y: cellY + dy * gridSize });
+                  candidates.push({ x: originX + dx * gridSize, y: originY + dy * gridSize });
                 }
               }
             }
@@ -238,10 +252,18 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
   }, []);
 
   const snapToGrid = useCallback(
-    (x: number, y: number): { x: number; y: number } => {
+    (x: number, y: number, tokenSize = 1): { x: number; y: number } => {
       if (session.gridMode === "none") return { x, y };
       const size = session.gridSize;
       if (session.gridMode === "square") {
+        if (isEvenCellToken(tokenSize)) {
+          // Snap center to nearest grid corner/intersection
+          return {
+            x: Math.round(x / size) * size,
+            y: Math.round(y / size) * size,
+          };
+        }
+        // Snap center to nearest cell center (1×1, 3×3, …)
         return {
           x: Math.floor(x / size) * size + size / 2,
           y: Math.floor(y / size) * size + size / 2,
@@ -277,10 +299,12 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
 
   const handleTokenDragEnd = useCallback(
     (id: string, x: number, y: number) => {
-      const snapped = snapToGrid(x, y);
+      const token = session.tokens.find((t) => t.id === id);
+      const tokenSize = token?.size ?? 1;
+      const snapped = snapToGrid(x, y, tokenSize);
       onMoveToken(id, snapped.x, snapped.y);
     },
-    [snapToGrid, onMoveToken]
+    [snapToGrid, onMoveToken, session.tokens]
   );
 
   return (

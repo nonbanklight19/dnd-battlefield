@@ -105,7 +105,7 @@ export function useSession(socket: Socket | null, sessionId: string | null) {
   );
 
   const addEnemy = useCallback(
-    (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => {
+    (data: { name: string; color: string; icon: string; customImage?: string; size: number; x: number; y: number }) => {
       socket?.emit("token:add-enemy", data);
     },
     [socket]

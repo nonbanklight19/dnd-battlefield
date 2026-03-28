@@ -6,10 +6,18 @@ const PRESET_COLORS = [
   "#7c6dec", "#ec4899", "#6b7280", "#e8e0d0",
 ];
 
+type TokenSize = 1 | 2.4 | 3.5;
+
+const TOKEN_SIZES: { value: TokenSize; label: string }[] = [
+  { value: 1, label: "1×1" },
+  { value: 2.4, label: "2×2" },
+  { value: 3.5, label: "3×3" },
+];
+
 interface Props {
   sessionId: string;
-  onAddEnemy: (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => void;
-  getViewCenter: () => { x: number; y: number };
+  onAddEnemy: (data: { name: string; color: string; icon: string; customImage?: string; size: number; x: number; y: number }) => void;
+  getViewCenter: (size?: number) => { x: number; y: number };
 }
 
 export function EnemyForm({ sessionId, onAddEnemy, getViewCenter }: Props) {
@@ -18,6 +26,7 @@ export function EnemyForm({ sessionId, onAddEnemy, getViewCenter }: Props) {
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
   const [customImage, setCustomImage] = useState<string | null>(null);
   const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [size, setSize] = useState<TokenSize>(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredIcons = useMemo(() => {
@@ -29,12 +38,13 @@ export function EnemyForm({ sessionId, onAddEnemy, getViewCenter }: Props) {
   const handleAdd = () => {
     if (!name.trim()) return;
     const iconUrl = customImage ?? (selectedIcon ? `/icons/${selectedIcon}.png` : `/icons/${iconNames[0]}.png`);
-    const { x, y } = getViewCenter();
+    const { x, y } = getViewCenter(size);
     onAddEnemy({
       name: name.trim(),
       color,
       icon: selectedIcon ?? iconNames[0],
       customImage: iconUrl,
+      size,
       x,
       y,
     });
@@ -140,6 +150,23 @@ export function EnemyForm({ sessionId, onAddEnemy, getViewCenter }: Props) {
               boxShadow: c === color ? "0 0 8px rgba(202,169,104,0.3)" : "none",
             }}
           />
+        ))}
+      </div>
+
+      <span className="text-[10px] uppercase tracking-[1px] text-text-muted block mb-2">Enemy Size</span>
+      <div className="flex gap-1.5 bg-bg-deep rounded-lg p-1.5 border border-border-default mb-4">
+        {TOKEN_SIZES.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => setSize(value)}
+            className={`flex-1 py-1.5 px-2 text-xs rounded-md text-center cursor-pointer transition-all duration-150 border-none ${
+              size === value
+                ? "bg-gold-dim text-gold-bright"
+                : "bg-transparent text-text-secondary hover:text-text-primary hover:bg-bg-hover"
+            }`}
+          >
+            {label}
+          </button>
         ))}
       </div>
 

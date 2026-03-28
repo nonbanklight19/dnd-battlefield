@@ -10,7 +10,7 @@ interface Props {
   sessionId: string;
   role: Role | null;
   onAddHero: (data: { heroType: string; x: number; y: number }) => void;
-  onAddEnemy: (data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }) => void;
+  onAddEnemy: (data: { name: string; color: string; icon: string; customImage?: string; size: number; x: number; y: number }) => void;
   onRemoveToken: (id: string) => void;
   onSetTokenStatus: (id: string, status: TokenStatus, active: boolean) => void;
   onUploadMap: (file: File) => void;
@@ -18,7 +18,7 @@ interface Props {
   onGridSizeChange: (size: number) => void;
   visible: boolean;
   onClose: () => void;
-  getViewCenter: () => { x: number; y: number };
+  getViewCenter: (size?: number) => { x: number; y: number };
 }
 
 const GRID_MODES: GridMode[] = ["none", "square", "hex"];

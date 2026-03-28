@@ -18,7 +18,7 @@ interface Props {
   tokens: Token[];
   onAddHero: (data: { heroType: string; x: number; y: number }) => void;
   onRemoveToken: (id: string) => void;
-  getViewCenter: () => { x: number; y: number };
+  getViewCenter: (size?: number) => { x: number; y: number };
 }
 
 export function HeroPicker({ tokens, onAddHero, onRemoveToken, getViewCenter }: Props) {

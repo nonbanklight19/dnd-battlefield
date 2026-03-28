@@ -82,7 +82,7 @@ export class StateManager {
 
   addEnemy(
     sessionId: string,
-    data: { name: string; color: string; icon: string; customImage?: string; x: number; y: number }
+    data: { name: string; color: string; icon: string; customImage?: string; size?: number; x: number; y: number }
   ): Token | undefined {
     const session = this.sessions.get(sessionId);
     if (!session) return undefined;
@@ -96,7 +96,7 @@ export class StateManager {
       customImage: data.customImage,
       x: data.x,
       y: data.y,
-      size: 1,
+      size: data.size ?? 1,
       statuses: [],
     };
     session.tokens.push(token);

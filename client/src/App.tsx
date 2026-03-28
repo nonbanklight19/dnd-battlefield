@@ -36,7 +36,7 @@ export function App() {
   });
   const [sidePanelVisible, setSidePanelVisible] = useState(false);
   const getViewCenterRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
-  const getSpawnPosRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
+  const getSpawnPosRef = useRef<(tokenSize?: number) => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
 
   const { session, connected, error, saveStatus, addHero, addEnemy, moveToken, removeToken, updateGrid, saveSession, setTokenStatus } =
     useSession(socket, sessionId);
@@ -171,7 +171,7 @@ export function App() {
           onGridSizeChange={handleGridSizeChange}
           visible={sidePanelVisible}
           onClose={() => setSidePanelVisible(false)}
-          getViewCenter={() => getSpawnPosRef.current()}
+          getViewCenter={(size?: number) => getSpawnPosRef.current(size)}
         />
       </div>
     </>
