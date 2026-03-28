@@ -51,6 +51,68 @@ export function AoeShapeComponent({ aoe, gridSize, scale, onMove, onRotate, onSe
   // The AOE body starts at the footprint edge and extends L px beyond it.
   const handleR = halfEdge + L; // arc radius for rotation handle (distance from origin)
 
+  // ── Rotation handle factory (shared by cone & line) ─────────────────────────
+  // On mobile Konva's drag system races with the parent Group drag, so we:
+  //  1. Enlarge the hit area so the dot is easy to tap
+  //  2. Disable the Group's draggable on touchStart/dragStart and restore on end
+  //  3. Compute the angle from raw touch coords in onTouchMove (no Konva drag needed)
+  const makeRotationHandle = (hx: number, hy: number): React.ReactNode => {
+    if (preview || !onRotate) return null;
+
+    const disableGroupDrag = (e: any) => {
+      (e.target.getParent() as any)?.draggable(false);
+    };
+    const restoreGroupDrag = (e: any) => {
+      (e.target.getParent() as any)?.draggable(draggable);
+    };
+
+    return (
+      <Circle
+        x={hx} y={hy}
+        radius={hr} fill="white" opacity={0.85}
+        // Larger invisible hit area — easier to tap on mobile
+        hitFunc={(ctx: any, shape: any) => {
+          ctx.beginPath();
+          ctx.arc(0, 0, Math.max(hr, 22 / scale), 0, Math.PI * 2, false);
+          ctx.closePath();
+          ctx.fillStrokeShape(shape);
+        }}
+        draggable
+        onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = "crosshair"; }}
+        onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = draggable ? "grab" : "default"; }}
+        // ── Mouse / desktop drag ──
+        onDragStart={(e) => { e.cancelBubble = true; disableGroupDrag(e); }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          const angle = Math.atan2(e.target.y(), e.target.x());
+          e.target.position({ x: handleR * Math.cos(angle), y: handleR * Math.sin(angle) });
+          onRotate(aoe.id, angle);
+        }}
+        onDragEnd={(e) => { e.cancelBubble = true; restoreGroupDrag(e); }}
+        // ── Touch / mobile ──
+        onTouchStart={(e) => {
+          e.cancelBubble = true;
+          e.evt.preventDefault();
+          disableGroupDrag(e);
+        }}
+        onTouchMove={(e) => {
+          e.cancelBubble = true;
+          e.evt.preventDefault();
+          const touch = e.evt.touches[0];
+          if (!touch) return;
+          const stage = e.target.getStage();
+          if (!stage) return;
+          // Convert raw screen coords → world coords, then angle relative to Group origin
+          const box = stage.container().getBoundingClientRect();
+          const wx = (touch.clientX - box.left - stage.x()) / stage.scaleX();
+          const wy = (touch.clientY - box.top  - stage.y()) / stage.scaleY();
+          onRotate(aoe.id, Math.atan2(wy - aoe.y, wx - aoe.x));
+        }}
+        onTouchEnd={(e) => { e.cancelBubble = true; restoreGroupDrag(e); }}
+      />
+    );
+  };
+
   // ── Shape body ──────────────────────────────────────────────────────────────
   let body: React.ReactNode;
   let hitArea: React.ReactNode = null;
@@ -62,7 +124,6 @@ export function AoeShapeComponent({ aoe, gridSize, scale, onMove, onRotate, onSe
     if (draggable) hitArea = <Circle radius={R} fill="rgba(0,0,0,0.001)" />;
 
   } else if (type === "square") {
-    // Square extends L beyond the footprint on every side
     const half = halfEdge + L / 2;
     body = (
       <Rect
@@ -74,7 +135,6 @@ export function AoeShapeComponent({ aoe, gridSize, scale, onMove, onRotate, onSe
     if (draggable) hitArea = <Rect x={-half} y={-half} width={half * 2} height={half * 2} fill="rgba(0,0,0,0.001)" />;
 
   } else if (type === "cone") {
-    // Apex sits on the footprint edge, far corners at handleR from origin
     const ax = halfEdge * Math.cos(r), ay = halfEdge * Math.sin(r);
     const pts = [
       ax, ay,
@@ -83,56 +143,18 @@ export function AoeShapeComponent({ aoe, gridSize, scale, onMove, onRotate, onSe
     ];
     body = <Line points={pts} closed fill={c.fill} stroke={c.stroke} strokeWidth={sw} listening={false} />;
     if (draggable) hitArea = <Line points={pts} closed fill="rgba(0,0,0,0.001)" />;
-
-    if (!preview && onRotate) {
-      handle = (
-        <Circle
-          x={handleR * Math.cos(r)} y={handleR * Math.sin(r)}
-          radius={hr} fill="white" opacity={0.85}
-          draggable
-          onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = "crosshair"; }}
-          onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = draggable ? "grab" : "default"; }}
-          onDragStart={(e) => { e.cancelBubble = true; }}
-          onDragMove={(e) => {
-            e.cancelBubble = true;
-            const angle = Math.atan2(e.target.y(), e.target.x());
-            e.target.position({ x: handleR * Math.cos(angle), y: handleR * Math.sin(angle) });
-            onRotate(aoe.id, angle);
-          }}
-          onDragEnd={(e) => { e.cancelBubble = true; }}
-        />
-      );
-    }
+    handle = makeRotationHandle(handleR * Math.cos(r), handleR * Math.sin(r));
 
   } else {
     // line — 5 ft wide (one cell), starts at footprint edge, extends L
     const hw = gridSize / 2;
-    const sx = halfEdge * Math.cos(r),    sy = halfEdge * Math.sin(r);
-    const ex = handleR * Math.cos(r),     ey = handleR * Math.sin(r);
-    const px = -Math.sin(r) * hw,         py = Math.cos(r) * hw;
+    const sx = halfEdge * Math.cos(r), sy = halfEdge * Math.sin(r);
+    const ex = handleR * Math.cos(r),  ey = handleR * Math.sin(r);
+    const px = -Math.sin(r) * hw,      py = Math.cos(r) * hw;
     const pts = [sx + px, sy + py, ex + px, ey + py, ex - px, ey - py, sx - px, sy - py];
     body = <Line points={pts} closed fill={c.fill} stroke={c.stroke} strokeWidth={sw} listening={false} />;
     if (draggable) hitArea = <Line points={pts} closed fill="rgba(0,0,0,0.001)" />;
-
-    if (!preview && onRotate) {
-      handle = (
-        <Circle
-          x={ex} y={ey}
-          radius={hr} fill="white" opacity={0.85}
-          draggable
-          onMouseEnter={(e) => { e.target.getStage()!.container().style.cursor = "crosshair"; }}
-          onMouseLeave={(e) => { e.target.getStage()!.container().style.cursor = draggable ? "grab" : "default"; }}
-          onDragStart={(e) => { e.cancelBubble = true; }}
-          onDragMove={(e) => {
-            e.cancelBubble = true;
-            const angle = Math.atan2(e.target.y(), e.target.x());
-            e.target.position({ x: handleR * Math.cos(angle), y: handleR * Math.sin(angle) });
-            onRotate(aoe.id, angle);
-          }}
-          onDragEnd={(e) => { e.cancelBubble = true; }}
-        />
-      );
-    }
+    handle = makeRotationHandle(ex, ey);
   }
 
   const setCursor = (cursor: string) => (e: any) => {
