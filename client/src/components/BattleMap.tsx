@@ -429,7 +429,12 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
         y={stagePos.y}
         scaleX={scale}
         scaleY={scale}
-        draggable={!rulerActive}
+        draggable
+        onDragStart={(e) => {
+          if (rulerActive && e.target === e.target.getStage()) {
+            e.target.stopDrag();
+          }
+        }}
         onDragEnd={(e) => {
           if (e.target === e.target.getStage()) {
             setStagePos({ x: e.target.x(), y: e.target.y() });
