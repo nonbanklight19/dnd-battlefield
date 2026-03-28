@@ -10,6 +10,8 @@ import { RoleSelection } from "./components/RoleSelection.js";
 import { InitiativeTracker } from "./components/InitiativeTracker.js";
 import { TurnNotification } from "./components/TurnNotification.js";
 import { useActiveTurn } from "./hooks/useActiveTurn.js";
+import { useInitiative } from "./hooks/useInitiative.js";
+import { InitiativeOverlay } from "./components/InitiativeOverlay.js";
 import type { GridMode, Role } from "./types.js";
 
 // Detect /<CODE>/initiative route
@@ -51,6 +53,7 @@ export function App() {
     useSession(socket, sessionId);
 
   const activeTurn = useActiveTurn(socket);
+  const { state: initiativeState } = useInitiative(socket, sessionId);
 
   // Render initiative tracker page independently (uses its own socket connection)
   if (page === "initiative" && sessionId) {
@@ -166,6 +169,7 @@ export function App() {
       {!role && <RoleSelection onSelect={handleRoleSelect} />}
       <div className="flex flex-1 overflow-hidden relative">
         <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} getViewCenterRef={getViewCenterRef} getSpawnPosRef={getSpawnPosRef} activeTurnTokenId={activeTurn?.tokenId ?? null} rulerActive={rulerActive} />
+        <InitiativeOverlay initiative={initiativeState} />
         <TurnNotification turn={activeTurn} socket={socket} />
         <SidePanel
           tokens={session.tokens}
