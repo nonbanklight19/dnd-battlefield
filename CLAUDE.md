@@ -33,13 +33,16 @@ Monorepo: `client/` (React + Vite + react-konva + Tailwind v4) and `server/` (Ex
 - `server/src/admin.ts` — Server-rendered admin panel (not SPA), token-based auth
 
 **Client layers:**
-- `client/src/App.tsx` — Routing, session state wiring, role selection (DM/Player)
+- `client/src/App.tsx` — Routing, session state wiring, role selection (DM/Player), AOE effect state
 - `client/src/hooks/useSession.ts` — Socket.io event binding, state sync
 - `client/src/hooks/useInitiative.ts` — Initiative tracker socket events and state
 - `client/src/hooks/useActiveTurn.ts` — Active turn notification state
 - `client/src/hooks/useHeroConfig.ts` — Hero HP/AC configuration state
-- `client/src/components/BattleMap.tsx` — Konva canvas with pan/zoom and grid overlay
-- `client/src/components/SidePanel.tsx` — Token management UI, spawns tokens at view center
+- `client/src/components/BattleMap.tsx` — Konva canvas with pan/zoom, grid overlay, AOE placement/drag/snap
+- `client/src/components/AoeShape.tsx` — Konva AOE shape rendering (circle, cone, line, square) with drag, rotation handle, origin footprint
+- `client/src/components/AoePanel.tsx` — AOE editor modal (shape, size, damage type, origin size picker, placed effects list)
+- `client/src/components/SidePanel.tsx` — Token management UI, initiative tracker link (DM only), spawns tokens at view center
+- `client/src/components/TopBar.tsx` — Header bar with tools (ruler, AOE, save, panel toggle); sticky on mobile
 - `client/src/components/InitiativeTracker.tsx` — Initiative order UI (separate page, synced via room code)
 - `client/src/components/HeroConfigModal.tsx` — Modal for setting hero HP/AC
 - `client/src/components/RoleSelection.tsx` — DM/Player role chooser on session join
@@ -50,7 +53,7 @@ Monorepo: `client/` (React + Vite + react-konva + Tailwind v4) and `server/` (Ex
 ## Key Patterns
 
 - **Token types:** `HeroToken | EnemyToken` union. Heroes are one-per-type-per-session (warrior, wizard, rogue, dwarf, triton). Enemies have custom name/color/icon and optional uploaded image. Both have a `statuses` array (currently supports `"dead"`).
-- **Initiative tracker:** Separate page (`/initiative/:sessionId`) synced via Socket.io. Rows link to battlefield tokens via `tokenId`. Adding/removing tokens auto-updates initiative. Dead tokens are auto-removed from initiative.
+- **Initiative tracker:** Separate page (`/initiative/:sessionId`) synced via Socket.io. Rows link to battlefield tokens via `tokenId`. Adding/removing tokens auto-updates initiative. Dead tokens are auto-removed from initiative. Link moved to SidePanel (DM only).
 - **Hero configs:** Per-session HP/AC defaults for each hero type, stored in `hero_configs` table. Applied when heroes are added to initiative.
 - **Roles:** DM or Player, chosen on session join. DM-only controls (grid, map upload) hidden from players.
 - **Grid modes:** `"none" | "square" | "hex"` — stored per session, affects snap-to-grid and overlay rendering.
@@ -59,6 +62,53 @@ Monorepo: `client/` (React + Vite + react-konva + Tailwind v4) and `server/` (Ex
 - **Guards:** `storageGuard` (Content-Length vs MAX_STORAGE_MB) and `sessionLimitGuard` (MAX_SESSIONS) middleware on creation/upload routes.
 - **Graceful shutdown:** SIGTERM saves all sessions, stops auto-save, closes DB.
 - **Vite proxy:** Dev mode proxies `/api`, `/uploads`, `/admin`, `/socket.io` to localhost:3001.
+
+## AOE Effects System
+
+AOE effects are client-side only (not persisted to server/SQLite). State lives in `App.tsx`.
+
+### AoeEffect type
+```ts
+interface AoeEffect {
+  id: string;
+  type: "circle" | "cone" | "line" | "square";
+  feet: number;          // spell range in feet (converted to px via gridSize)
+  x: number; y: number;  // origin point in world coords (snapped to grid)
+  rotation: number;      // radians — meaningful for cone & line
+  color: AoeColor;       // fire | cold | lightning | poison | necrotic | radiant | psychic
+  originSize: 1 | 2 | 3; // grid-cell footprint of the caster (1×1, 2×2, 3×3)
+}
+```
+
+### Geometry rules
+- `halfEdge = (originSize × gridSize) / 2` — pixel distance from origin to footprint edge
+- All shape measurements start at the footprint edge, not the origin center:
+  - **Circle**: `radius = halfEdge + L`
+  - **Square**: `half-side = halfEdge + L/2` (symmetric expansion)
+  - **Cone**: apex at `(halfEdge·cos r, halfEdge·sin r)`, length L from there
+  - **Line**: starts at `halfEdge` along `r`, ends at `halfEdge + L`
+- `handleR = halfEdge + L` — arc radius for the rotation handle
+
+### Snapping (`snapAoeOrigin` in BattleMap.tsx)
+- `originSize 1 or 3` → snap to **cell centre** (`floor(x/gs)·gs + gs/2`)
+- `originSize 2` → snap to **grid corner** (`round(x/gs)·gs`)
+- Hex → reuses existing hex-centre snap
+
+### Interaction
+- **Place**: click map in placement mode → origin snapped → AoeEffect added → placement mode exits
+- **Drag**: transparent hit-area shape on Group; `onDragEnd` snaps via `handleAoeDragEnd` in BattleMap
+- **Rotate** (cone/line): white handle dot at far end; desktop uses Konva drag (`onDragMove`); mobile uses raw `onTouchMove` with screen→world coord conversion (bypasses Konva drag to avoid Group/handle drag conflict); Group drag is imperatively disabled during handle touch
+- **Select**: click shape → glow shadow; click empty stage → deselect; Escape → deselect
+- **Delete**: press `Delete` or `Backspace` while a shape is selected
+
+### Mobile rotation fix
+The rotation handle has an enlarged hit area via Konva `hitFunc` (`max(hr, 22/scale)`). On `touchStart`/`dragStart`, the parent Group's `draggable` is set to `false` imperatively (`node.draggable(false)`) and restored on `touchEnd`/`dragEnd`. Rotation angle is computed from raw touch `clientX/Y` converted to world coords.
+
+## Mobile Layout
+
+- `#root` uses `height: 100svh` (small viewport height) with `100vh` fallback — prevents overflow when the mobile URL bar collapses
+- `html` and `body` have `overflow: hidden` to prevent page scroll
+- `TopBar` is `sticky top-0 z-30` to guarantee it stays visible
 
 ## Environment Variables
 

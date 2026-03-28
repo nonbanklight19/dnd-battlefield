@@ -12,17 +12,40 @@ Built for personal use with a small friend group. No accounts, no auth — just 
 - **Enemy tokens** — custom name + color + optional icon
 - **Grid overlay** — toggleable square or hex grid with configurable cell size
 - **Snap-to-grid** — tokens snap to the nearest cell center when grid is active
-- **Pan & zoom** — navigate large maps with mouse drag + scroll wheel
+- **Pan & zoom** — navigate large maps with mouse drag + scroll wheel; pinch-to-zoom on touch
 - **Token statuses** — mark tokens as **Dead** (red cross overlay); dead tokens are removed from the initiative tracker automatically
 - **Role selection** — choose **DM** or **Player** on session join; DM-only controls (grid, map upload) are hidden from players
-- **Auto-save** — session state persists to SQLite every 5 minutes (global, not per-user)
-- **Initiative Tracker** — separate page, synced to the session by room code (see below)
+- **Auto-save** — session state persists to SQLite every 30 seconds
+- **Initiative Tracker** — separate page, synced to the session by room code; link in the side panel (DM only)
 - **Turn notifications** — toast shown on the battle map when initiative advances or a token is marked dead
+- **Area of Effect (AoE)** — place, drag, rotate, and delete spell effect overlays on the map
+- **Ruler tool** — measure distances in feet between any two points on the map
 - **Admin panel** — optional server management UI (enabled via `ADMIN_PASSWORD` env var)
+
+## Area of Effect
+
+Open the 🎯 button in the top bar to launch the AoE editor.
+
+| Option | Description |
+|--------|-------------|
+| **Shape** | Circle, Cone, Line, Square |
+| **Size** | Spell range in feet (5 ft – 300 ft) |
+| **Origin Size** | Footprint of the caster: 1×1, 2×2, or 3×3 grid cells |
+| **Type** | Damage type colour — Fire, Cold, Lightning, Poison, Necrotic, Radiant, Psychic |
+
+### How it works
+
+- Click **Place on Map** then tap/click the map to drop the shape. Placement exits automatically after the first placement.
+- The **origin footprint** (dashed border) shows the caster's occupied space. The spell area starts at the footprint edge and extends the chosen distance beyond it.
+- **Origin snapping** — 1×1 and 3×3 origins snap to cell centres; 2×2 origins snap to grid corners.
+- **Drag** the shape to reposition it; it snaps to the grid on release.
+- **Rotate** cone and line shapes by dragging the white dot at the far end. Works on both desktop (mouse drag) and mobile (touch).
+- **Select** a shape by clicking/tapping it (glow highlight). Press `Delete` or `Backspace` to remove it. Press `Escape` to deselect.
+- Remove individual shapes from the placed list in the editor panel, or use **Clear All**.
 
 ## Initiative Tracker
 
-Open `/<SESSION_CODE>/initiative` in any browser to get the initiative tracker for that session. It is a separate full-screen page that stays in sync with the battle map via the same socket room.
+Open `/<SESSION_CODE>/initiative` in any browser (or tap **⚡ Initiative Tracker** in the side panel) to get the initiative tracker for that session. It is a separate full-screen page that stays in sync with the battle map via the same socket room.
 
 ### Features
 
@@ -62,7 +85,7 @@ Open `/<SESSION_CODE>/initiative` in any browser to get the initiative tracker f
 
 | Layer | Tech |
 |-------|------|
-| Frontend | React, TypeScript, Vite, react-konva, Tailwind CSS |
+| Frontend | React, TypeScript, Vite, react-konva, Tailwind CSS v4 |
 | Backend | Express, Socket.io, better-sqlite3, multer |
 | Deploy | Docker on Fly.io with persistent volume |
 
@@ -71,9 +94,11 @@ Open `/<SESSION_CODE>/initiative` in any browser to get the initiative tracker f
 ```
 client/                  # React + Vite frontend
   src/
-    components/          # BattleMap, Token, GridOverlay, SidePanel, TopBar, etc.
-    hooks/               # useSocket, useSession, useHeroImages
-    App.tsx              # Main app with session routing
+    components/          # BattleMap, Token, GridOverlay, SidePanel, TopBar,
+    |                    #   AoeShape, AoePanel, InitiativeTracker, etc.
+    hooks/               # useSocket, useSession, useHeroImages, useInitiative, …
+    types.ts             # Shared frontend types (Token, AoeEffect, …)
+    App.tsx              # Main app — routing, session wiring, AOE state
 server/                  # Express + Socket.io backend
   src/
     index.ts             # Server entry point
@@ -83,7 +108,7 @@ server/                  # Express + Socket.io backend
     db.ts                # SQLite persistence
     admin.ts             # Admin panel routes
     guards.ts            # Resource limit guards
-    types.ts             # Shared types
+    types.ts             # Shared server types
 Dockerfile               # Multi-stage build
 fly.toml                 # Fly.io deployment config
 ```
@@ -136,10 +161,11 @@ docker run -p 3001:3001 -v battlefield_data:/data dnd-battlefield
 ## How It Works
 
 1. Create or join a session using a 4-character room code
-2. Upload a battle map image
+2. Upload a battle map image (DM only)
 3. Add hero tokens (preset images) or enemy tokens (name + color)
 4. Drag tokens around the map — all connected clients see moves in real time
 5. Toggle grid overlay and adjust grid size as needed
+6. Use the 🎯 AoE tool to overlay spell effects; use the 📏 ruler to measure distances
 
 State lives in memory for zero-latency reads; SQLite persists it for durability. Sessions auto-cleanup after 7 days of inactivity.
 
