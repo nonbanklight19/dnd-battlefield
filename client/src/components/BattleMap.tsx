@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Stage, Layer, Image as KonvaImage } from "react-konva";
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Group, Rect, Text } from "react-konva";
 import type { SessionState, HeroType } from "../types.js";
 import { TokenComponent } from "./Token.js";
 import { GridOverlay } from "./GridOverlay.js";
@@ -18,14 +18,31 @@ interface Props {
   getViewCenterRef?: React.MutableRefObject<() => { x: number; y: number }>;
   getSpawnPosRef?: React.MutableRefObject<(tokenSize?: number) => { x: number; y: number }>;
   activeTurnTokenId?: string | null;
+  rulerActive?: boolean;
 }
 
-export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef, activeTurnTokenId }: Props) {
+export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, getSpawnPosRef, activeTurnTokenId, rulerActive = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
+
+  // Ruler state
+  const [rulerStart, setRulerStart] = useState<{ x: number; y: number } | null>(null);
+  const [rulerEnd, setRulerEnd] = useState<{ x: number; y: number } | null>(null);
+  const rulerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const rulerActiveRef = useRef(rulerActive);
+  rulerStartRef.current = rulerStart;
+  rulerActiveRef.current = rulerActive;
+
+  // Clear ruler when deactivated
+  useEffect(() => {
+    if (!rulerActive) {
+      setRulerStart(null);
+      setRulerEnd(null);
+    }
+  }, [rulerActive]);
 
   // Pinch-to-zoom touch state
   const lastTouchDist = useRef(0);
@@ -197,6 +214,18 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
     y: (t1.clientY + t2.clientY) / 2,
   });
 
+  /** Convert a native Touch to canvas (world) coordinates */
+  const touchToCanvas = (touch: Touch) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    const screenX = touch.clientX - rect.left;
+    const screenY = touch.clientY - rect.top;
+    return {
+      x: (screenX - stagePosRef.current.x) / scaleRef.current,
+      y: (screenY - stagePosRef.current.y) / scaleRef.current,
+    };
+  };
+
   const handleTouchStart = useCallback((e: any) => {
     if (e.evt.touches.length === 2) {
       isPinching.current = true;
@@ -204,43 +233,60 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
       lastTouchCenter.current = getTouchCenter(e.evt.touches[0], e.evt.touches[1]);
       // Stop one-finger drag so it doesn't fight with the pinch
       e.target.getStage()?.stopDrag();
+    } else if (e.evt.touches.length === 1 && rulerActiveRef.current) {
+      // Single-finger ruler: set start point or clear
+      e.evt.preventDefault();
+      const pos = touchToCanvas(e.evt.touches[0]);
+      if (!rulerStartRef.current) {
+        setRulerStart(pos);
+        setRulerEnd(pos);
+      } else {
+        setRulerStart(null);
+        setRulerEnd(null);
+      }
     }
   }, []);
 
   const handleTouchMove = useCallback((e: any) => {
-    if (e.evt.touches.length !== 2) return;
-    e.evt.preventDefault();
+    if (e.evt.touches.length === 2) {
+      e.evt.preventDefault();
 
-    const touch1 = e.evt.touches[0];
-    const touch2 = e.evt.touches[1];
-    const dist = getTouchDist(touch1, touch2);
-    const center = getTouchCenter(touch1, touch2);
-    const prevCenter = lastTouchCenter.current ?? center;
-    const oldScale = scaleRef.current;
-    const oldPos = stagePosRef.current;
+      const touch1 = e.evt.touches[0];
+      const touch2 = e.evt.touches[1];
+      const dist = getTouchDist(touch1, touch2);
+      const center = getTouchCenter(touch1, touch2);
+      const prevCenter = lastTouchCenter.current ?? center;
+      const oldScale = scaleRef.current;
+      const oldPos = stagePosRef.current;
 
-    const scaleBy = dist / (lastTouchDist.current || dist);
-    const newScale = Math.min(Math.max(oldScale * scaleBy, 0.1), 5);
+      const scaleBy = dist / (lastTouchDist.current || dist);
+      const newScale = Math.min(Math.max(oldScale * scaleBy, 0.1), 5);
 
-    // Point under the pinch center (in canvas coords)
-    const pointTo = {
-      x: (center.x - oldPos.x) / oldScale,
-      y: (center.y - oldPos.y) / oldScale,
-    };
+      // Point under the pinch center (in canvas coords)
+      const pointTo = {
+        x: (center.x - oldPos.x) / oldScale,
+        y: (center.y - oldPos.y) / oldScale,
+      };
 
-    // Pan delta from two-finger translation
-    const dx = center.x - prevCenter.x;
-    const dy = center.y - prevCenter.y;
+      // Pan delta from two-finger translation
+      const dx = center.x - prevCenter.x;
+      const dy = center.y - prevCenter.y;
 
-    const newPos = {
-      x: center.x - pointTo.x * newScale + dx,
-      y: center.y - pointTo.y * newScale + dy,
-    };
+      const newPos = {
+        x: center.x - pointTo.x * newScale + dx,
+        y: center.y - pointTo.y * newScale + dy,
+      };
 
-    setScale(newScale);
-    setStagePos(newPos);
-    lastTouchDist.current = dist;
-    lastTouchCenter.current = center;
+      setScale(newScale);
+      setStagePos(newPos);
+      lastTouchDist.current = dist;
+      lastTouchCenter.current = center;
+    } else if (e.evt.touches.length === 1 && rulerActiveRef.current && rulerStartRef.current) {
+      // Single-finger ruler drag: update end point
+      e.evt.preventDefault();
+      const pos = touchToCanvas(e.evt.touches[0]);
+      setRulerEnd(pos);
+    }
   }, []);
 
   const handleTouchEnd = useCallback((e: any) => {
@@ -251,6 +297,27 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
     }
   }, []);
 
+  // ── Ruler mouse handlers (fired from the transparent overlay Rect) ──────────
+  const handleRulerMouseDown = useCallback((e: any) => {
+    const stage = e.target.getStage();
+    const pos = stage.getRelativePointerPosition();
+    if (!rulerStartRef.current) {
+      setRulerStart(pos);
+      setRulerEnd(pos);
+    } else {
+      setRulerStart(null);
+      setRulerEnd(null);
+    }
+  }, []);
+
+  const handleRulerMouseMove = useCallback((e: any) => {
+    if (!rulerStartRef.current) return;
+    const stage = e.target.getStage();
+    const pos = stage.getRelativePointerPosition();
+    setRulerEnd(pos);
+  }, []);
+
+  // ── Snapping ─────────────────────────────────────────────────────────────────
   const snapToGrid = useCallback(
     (x: number, y: number, tokenSize = 1): { x: number; y: number } => {
       if (session.gridMode === "none") return { x, y };
@@ -307,8 +374,38 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
     [snapToGrid, onMoveToken, session.tokens]
   );
 
+  // ── Ruler distance ────────────────────────────────────────────────────────────
+  const rulerFeet = (() => {
+    if (!rulerStart || !rulerEnd) return 0;
+    const dx = rulerEnd.x - rulerStart.x;
+    const dy = rulerEnd.y - rulerStart.y;
+    const pixelDist = Math.sqrt(dx * dx + dy * dy);
+    // 1 grid cell = 5 ft.
+    // Square: cell width = gridSize px.
+    // Hex: adjacent center-to-center = gridSize × √3 px (circumradius → flat-to-flat distance).
+    const cellPx =
+      session.gridMode === "hex"
+        ? session.gridSize * Math.sqrt(3)
+        : session.gridSize;
+    return Math.round((pixelDist / cellPx) * 5);
+  })();
+
+  const feetLabel = `${rulerFeet} ft`;
+  const labelFontSize = 13 / scale;
+  const labelW = Math.max(52, feetLabel.length * 9) / scale;
+  const labelH = 24 / scale;
+
   return (
-    <div ref={containerRef} style={{ flex: 1, overflow: "hidden", background: "#0a0c07", touchAction: "none" }}>
+    <div
+      ref={containerRef}
+      style={{
+        flex: 1,
+        overflow: "hidden",
+        background: "#0a0c07",
+        touchAction: "none",
+        cursor: rulerActive ? "crosshair" : "default",
+      }}
+    >
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -316,7 +413,7 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
         y={stagePos.y}
         scaleX={scale}
         scaleY={scale}
-        draggable
+        draggable={!rulerActive}
         onDragEnd={(e) => {
           if (e.target === e.target.getStage()) {
             setStagePos({ x: e.target.x(), y: e.target.y() });
@@ -355,6 +452,77 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
               isActiveTurn={activeTurnTokenId === token.id}
             />
           ))}
+        </Layer>
+
+        {/* ── Ruler layer (always on top) ───────────────────────────────────── */}
+        <Layer>
+          {/* Transparent overlay captures mouse events when ruler is active */}
+          {rulerActive && (
+            <Rect
+              x={-50000}
+              y={-50000}
+              width={100000}
+              height={100000}
+              fill="transparent"
+              onMouseDown={handleRulerMouseDown}
+              onMouseMove={handleRulerMouseMove}
+            />
+          )}
+
+          {rulerStart && rulerEnd && (
+            <Group listening={false}>
+              {/* Dashed measurement line */}
+              <Line
+                points={[rulerStart.x, rulerStart.y, rulerEnd.x, rulerEnd.y]}
+                stroke="#f6e05e"
+                strokeWidth={2 / scale}
+                dash={[10 / scale, 5 / scale]}
+                lineCap="round"
+              />
+              {/* Start dot */}
+              <Circle
+                x={rulerStart.x}
+                y={rulerStart.y}
+                radius={5 / scale}
+                fill="#f6e05e"
+              />
+              {/* End dot */}
+              <Circle
+                x={rulerEnd.x}
+                y={rulerEnd.y}
+                radius={5 / scale}
+                fill="#f6e05e"
+              />
+              {/* Distance label at midpoint */}
+              <Group
+                x={(rulerStart.x + rulerEnd.x) / 2}
+                y={(rulerStart.y + rulerEnd.y) / 2}
+              >
+                <Rect
+                  x={-labelW / 2}
+                  y={-labelH / 2}
+                  width={labelW}
+                  height={labelH}
+                  fill="#1a1a1a"
+                  stroke="#f6e05e"
+                  strokeWidth={1 / scale}
+                  cornerRadius={4 / scale}
+                />
+                <Text
+                  text={feetLabel}
+                  fontSize={labelFontSize}
+                  fontStyle="bold"
+                  fill="#f6e05e"
+                  align="center"
+                  verticalAlign="middle"
+                  width={labelW}
+                  height={labelH}
+                  x={-labelW / 2}
+                  y={-labelH / 2}
+                />
+              </Group>
+            </Group>
+          )}
         </Layer>
       </Stage>
     </div>

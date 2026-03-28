@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useSocket } from "./hooks/useSocket.js";
 import { useSession } from "./hooks/useSession.js";
 import { useHeroImages } from "./hooks/useHeroImages.js";
@@ -35,6 +35,15 @@ export function App() {
     return (sessionStorage.getItem(`role:${id}`) as Role | null);
   });
   const [sidePanelVisible, setSidePanelVisible] = useState(false);
+  const [rulerActive, setRulerActive] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && rulerActive) setRulerActive(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [rulerActive]);
   const getViewCenterRef = useRef<() => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
   const getSpawnPosRef = useRef<(tokenSize?: number) => { x: number; y: number }>(() => ({ x: 400, y: 300 }));
 
@@ -151,10 +160,12 @@ export function App() {
         onSave={saveSession}
         onToggleSidePanel={() => setSidePanelVisible((v) => !v)}
         role={role}
+        rulerActive={rulerActive}
+        onToggleRuler={() => setRulerActive((v) => !v)}
       />
       {!role && <RoleSelection onSelect={handleRoleSelect} />}
       <div className="flex flex-1 overflow-hidden relative">
-        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} getViewCenterRef={getViewCenterRef} getSpawnPosRef={getSpawnPosRef} activeTurnTokenId={activeTurn?.tokenId ?? null} />
+        <BattleMap session={session} heroImages={heroImages} onMoveToken={moveToken} getViewCenterRef={getViewCenterRef} getSpawnPosRef={getSpawnPosRef} activeTurnTokenId={activeTurn?.tokenId ?? null} rulerActive={rulerActive} />
         <TurnNotification turn={activeTurn} socket={socket} />
         <SidePanel
           tokens={session.tokens}

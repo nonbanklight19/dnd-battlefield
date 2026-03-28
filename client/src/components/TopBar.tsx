@@ -6,9 +6,11 @@ interface Props {
   onSave: () => void;
   onToggleSidePanel: () => void;
   role: Role | null;
+  rulerActive: boolean;
+  onToggleRuler: () => void;
 }
 
-export function TopBar({ sessionId, saveStatus, onSave, onToggleSidePanel, role }: Props) {
+export function TopBar({ sessionId, saveStatus, onSave, onToggleSidePanel, role, rulerActive, onToggleRuler }: Props) {
   const copyCode = () => {
     navigator.clipboard.writeText(window.location.href);
   };
@@ -54,6 +56,17 @@ export function TopBar({ sessionId, saveStatus, onSave, onToggleSidePanel, role 
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">
+      <button
+        onClick={onToggleRuler}
+        title={rulerActive ? "Ruler active — click to deactivate" : "Ruler tool (measure distance)"}
+        className={`w-10 h-10 flex items-center justify-center border rounded-lg text-base cursor-pointer transition-all duration-150 ${
+          rulerActive
+            ? "bg-gold-subtle border-gold-muted text-gold-bright"
+            : "bg-transparent border-transparent text-text-secondary hover:text-gold-bright hover:bg-gold-subtle hover:border-border-default"
+        }`}
+      >
+        📏
+      </button>
       <button
         onClick={onSave}
         disabled={saveStatus === "saving"}
