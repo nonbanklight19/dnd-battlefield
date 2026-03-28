@@ -20,6 +20,11 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
   const [scale, setScale] = useState(1);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
 
+  // Pinch-to-zoom touch state
+  const lastTouchDist = useRef(0);
+  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
+  const isPinching = useRef(false);
+
   // Keep refs so getViewCenter always reads latest values
   const stagePosRef = useRef(stagePos);
   const scaleRef = useRef(scale);
@@ -170,6 +175,68 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
     });
   }, []);
 
+  const getTouchDist = (t1: Touch, t2: Touch) =>
+    Math.sqrt(Math.pow(t2.clientX - t1.clientX, 2) + Math.pow(t2.clientY - t1.clientY, 2));
+
+  const getTouchCenter = (t1: Touch, t2: Touch) => ({
+    x: (t1.clientX + t2.clientX) / 2,
+    y: (t1.clientY + t2.clientY) / 2,
+  });
+
+  const handleTouchStart = useCallback((e: any) => {
+    if (e.evt.touches.length === 2) {
+      isPinching.current = true;
+      lastTouchDist.current = getTouchDist(e.evt.touches[0], e.evt.touches[1]);
+      lastTouchCenter.current = getTouchCenter(e.evt.touches[0], e.evt.touches[1]);
+      // Stop one-finger drag so it doesn't fight with the pinch
+      e.target.getStage()?.stopDrag();
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: any) => {
+    if (e.evt.touches.length !== 2) return;
+    e.evt.preventDefault();
+
+    const touch1 = e.evt.touches[0];
+    const touch2 = e.evt.touches[1];
+    const dist = getTouchDist(touch1, touch2);
+    const center = getTouchCenter(touch1, touch2);
+    const prevCenter = lastTouchCenter.current ?? center;
+    const oldScale = scaleRef.current;
+    const oldPos = stagePosRef.current;
+
+    const scaleBy = dist / (lastTouchDist.current || dist);
+    const newScale = Math.min(Math.max(oldScale * scaleBy, 0.1), 5);
+
+    // Point under the pinch center (in canvas coords)
+    const pointTo = {
+      x: (center.x - oldPos.x) / oldScale,
+      y: (center.y - oldPos.y) / oldScale,
+    };
+
+    // Pan delta from two-finger translation
+    const dx = center.x - prevCenter.x;
+    const dy = center.y - prevCenter.y;
+
+    const newPos = {
+      x: center.x - pointTo.x * newScale + dx,
+      y: center.y - pointTo.y * newScale + dy,
+    };
+
+    setScale(newScale);
+    setStagePos(newPos);
+    lastTouchDist.current = dist;
+    lastTouchCenter.current = center;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: any) => {
+    if (e.evt.touches.length < 2) {
+      isPinching.current = false;
+      lastTouchDist.current = 0;
+      lastTouchCenter.current = null;
+    }
+  }, []);
+
   const snapToGrid = useCallback(
     (x: number, y: number): { x: number; y: number } => {
       if (session.gridMode === "none") return { x, y };
@@ -217,7 +284,7 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
   );
 
   return (
-    <div ref={containerRef} style={{ flex: 1, overflow: "hidden", background: "#0a0c07" }}>
+    <div ref={containerRef} style={{ flex: 1, overflow: "hidden", background: "#0a0c07", touchAction: "none" }}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
@@ -232,6 +299,9 @@ export function BattleMap({ session, heroImages, onMoveToken, getViewCenterRef, 
           }
         }}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <Layer>
           {mapImage && (
