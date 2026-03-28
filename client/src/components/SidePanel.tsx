@@ -111,6 +111,22 @@ export function SidePanel({
           <div className="w-10 h-1 rounded-full bg-border-hover" />
         </div>
       )}
+
+      {/* Initiative Tracker link — DM only */}
+      {isDM && (
+        <div className="px-5 py-3 border-b border-border-default">
+          <a
+            href={`/${sessionId}/initiative`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-border-default bg-bg-deep text-sm text-text-secondary no-underline transition-all duration-150 hover:bg-gold-subtle hover:border-border-hover hover:text-gold-bright"
+          >
+            <span>⚡</span>
+            <span>Initiative Tracker</span>
+            <span className="ml-auto text-text-muted text-xs">↗</span>
+          </a>
+        </div>
+      )}
       {/* Grid Setup — DM only */}
       {isDM && (
         <CollapsibleSection title="Grid Setup" defaultOpen={false}>
